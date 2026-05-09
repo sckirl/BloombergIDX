@@ -287,6 +287,8 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
         logger.error(f"Parser Error for {source_url}: {e}")
     return transactions
 
+from .cache import invalidate_cache
+
 def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
     db = SessionLocal()
     try:
@@ -321,6 +323,7 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
         db.commit()
         if added > 0:
             logger.info(f"Successfully added {added} rows from {url}.")
+            invalidate_cache("insider_*") # Invalidate all insider caches
         return added
     except Exception as e:
         logger.error(f"Error processing {url}: {e}")

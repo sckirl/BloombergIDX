@@ -79,14 +79,27 @@ def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = False):
     background_tasks.add_task(run_scraper, full_year=full_year)
     return {"message": f"Scraper task (full_year={full_year}) added to background queue"}
 
+from .cache import get_cache, set_cache, invalidate_cache
+
+# ... (inside get_latest_insiders)
 @app.get("/insider/latest", response_model=List[Dict[str, Any]])
 def get_latest_insiders(db: Session = Depends(get_db)):
+    cache_key = "insider_latest"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
     try:
         transactions = db.query(InsiderTransaction).order_by(InsiderTransaction.filing_date.desc()).limit(1000).all()
         result = []
         for t in transactions:
             t_dict = {c.name: getattr(t, c.name) for c in t.__table__.columns}
+            # Convert date objects to strings for JSON serialization in cache
+            for k, v in t_dict.items():
+                if isinstance(v, (datetime, date)):
+                    t_dict[k] = v.isoformat()
             result.append(t_dict)
+        
+        set_cache(cache_key, result, ttl=60) # 1 minute cache for feed
         return result
     except Exception as e:
         print(f"Error fetching latest insiders: {e}")

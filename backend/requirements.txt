@@ -18,6 +18,7 @@ pdf2image
 Pillow
 playwright==1.41.2
 yfinance
+redis
 # openbb removed due to availability issues
 
 
