@@ -142,6 +142,39 @@ def calculate_ownership_change(before: float, after: float) -> float:
     except:
         return 0.0
 
+def calculate_confidence(transaction: Dict[str, Any]) -> float:
+    """
+    Calculates a confidence score (0.0 to 1.0) based on data source and parsing quality.
+    (VALID-01: Truth Hierarchy)
+    """
+    confidence = 1.0
+    
+    # 1. Source Hierarchy
+    source_url = transaction.get("source_url", "")
+    if "idx.co.id" in source_url:
+        confidence *= 1.0 # Official IDX
+    elif "ksei.co.id" in source_url:
+        confidence *= 0.9 # Official KSEI (often slightly delayed/different format)
+    else:
+        confidence *= 0.5 # Unknown/Third-party
+        
+    # 2. Field Completeness
+    required_fields = ["shares", "price", "date", "insider_name"]
+    missing = [f for f in required_fields if not transaction.get(f)]
+    if missing:
+        confidence *= (1.0 - (0.2 * len(missing)))
+        
+    # 3. Inference Penalties
+    if transaction.get("date_inferred", False):
+        confidence *= 0.8
+        
+    # 4. Value Sanity
+    price = float(transaction.get("price") or 0)
+    if price <= 0:
+        confidence *= 0.5
+        
+    return float(round(max(0.0, confidence), 2))
+
 def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str]]:
     """
     Implements the Smart Scoring System with reason breakdown.
@@ -209,12 +242,35 @@ def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str
             score += 3
             reasons.append("Double-Conviction: Coincides with Buyback (+3)")
             
-        # RVOL Modifiers
+        # RVOL Modifiers (Volume Sigma)
         rvol = transaction.get("rvol") or 1.0
-        if rvol >= 2.0:
+        if rvol >= 3.0:
+            score += 4
+            reasons.append(f"Extreme Volume Sigma {rvol}x (+4)")
+        elif rvol >= 2.0:
             score += 2
-            reasons.append(f"High RVOL {rvol}x (+2)")
+            reasons.append(f"Significant Volume Sigma {rvol}x (+2)")
         
+        # Repeated Buyer Logic
+        if db and ticker and t_date:
+            from .models import InsiderTransaction
+            thirty_days_ago = t_date - datetime.timedelta(days=30)
+            
+            previous_buys_count = db.query(InsiderTransaction).filter(
+                InsiderTransaction.ticker == ticker,
+                InsiderTransaction.insider_name == transaction.get("insider_name"),
+                InsiderTransaction.transaction_type == "BUY",
+                InsiderTransaction.date >= thirty_days_ago,
+                InsiderTransaction.date < t_date
+            ).count()
+            
+            if previous_buys_count >= 2:
+                score += 3
+                reasons.append(f"Repeated Buyer: {previous_buys_count + 1}th buy in 30d (+3)")
+            elif previous_buys_count == 1:
+                score += 1
+                reasons.append("Follow-on Accumulation (+1)")
+
         # Cluster Buy Logic (BUY or EXERCISE)
         if db and ticker and t_date:
             from .models import InsiderTransaction

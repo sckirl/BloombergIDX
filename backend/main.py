@@ -7,25 +7,15 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 import threading
 
+from .logger import logger
 from .database import get_db, engine, SessionLocal
-from .models import InsiderTransaction, Base
-from . import models
-from .scraper import run_scraper
-from .utils import (
-    normalize_role, 
-    calculate_score, 
-    get_30d_adv, 
-    get_insider_stats_for_absorption
-)
-
-import os
 
 # Create tables
 try:
     models.Base.metadata.create_all(bind=engine)
-    print("Database tables created/verified.")
+    logger.info("Database tables created/verified.")
 except Exception as e:
-    print(f"Warning: Database tables could not be created during startup: {e}")
+    logger.error(f"Database tables could not be created during startup: {e}", exc_info=True)
 
 app = FastAPI(title="IDX OpenInsider API")
 
@@ -40,11 +30,11 @@ app.add_middleware(
 
 async def run_scraper_async(full_year=False):
     try:
-        print(f"Background Task: Running scraper (full_year={full_year})...")
+        logger.info(f"Background Task: Running scraper (full_year={full_year})...")
         await asyncio.to_thread(run_scraper, full_year=full_year)
-        print("Background Task: Scraper finished.")
+        logger.info("Background Task: Scraper finished.")
     except Exception as e:
-        print(f"Background Task Error: {e}")
+        logger.error(f"Background Task Error: {e}", exc_info=True)
 
 async def daily_scheduler():
     import random
@@ -59,14 +49,14 @@ async def daily_scheduler():
             target_time += timedelta(days=1)
         
         wait_seconds = (target_time - now_wib).total_seconds()
-        print(f"Scheduler: Next run at {target_time} (WIB), waiting {wait_seconds} seconds.")
+        logger.info(f"Scheduler: Next run at {target_time} (WIB), waiting {wait_seconds} seconds.")
         
         await asyncio.sleep(wait_seconds)
         await run_scraper_async()
 
 @app.on_event("startup")
 async def startup_event():
-    print("Startup: Triggering daily scheduler...")
+    logger.info("Startup: Triggering daily scheduler...")
     asyncio.create_task(daily_scheduler())
 
 @app.get("/health")

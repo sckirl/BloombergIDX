@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 
+// --- Types ---
 interface InsiderTransaction {
   id: number;
   date: string;
@@ -13,475 +14,226 @@ interface InsiderTransaction {
   price: string | number;
   value: string | number;
   score: number;
-  score_reasons?: string; // JSON string
+  score_reasons?: string; 
   rvol?: number;
-  is_buyback?: boolean;
-  price_history?: string; // JSON array
 }
 
-interface ClusterGroup {
+interface Signal {
+  id: number;
   ticker: string;
-  insider_count: number;
-  transaction_count: number;
-  last_date: string;
-  total_value: number;
-  insiders: string[];
-  activity: InsiderTransaction[];
+  title: string;
+  body: string;
+  severity: 'HIGH' | 'MED' | 'LOW';
+  timestamp: string;
 }
+
+// --- Components ---
+
+const Sidebar = ({ onNav }: { onNav: (view: string) => void }) => (
+  <aside className="w-[200px] border-r border-border-custom bg-black flex flex-col">
+    <div className="p-4 border-b border-border-custom flex items-center gap-2">
+      <div className="w-5 h-5 bg-acc rounded-sm"></div>
+      <span className="font-bold text-xs tracking-tighter">IDX INSIDER</span>
+    </div>
+    <nav className="flex-1 p-2 space-y-1">
+      {[
+        { id: 'INSIDER', label: 'INSIDER FEED', cmd: 'INSIDER' },
+        { id: 'FLOW', label: 'SMART FLOW', cmd: 'FLOW' },
+        { id: 'ANOMALY', label: 'ANOMALIES', cmd: 'ANOMALY' },
+        { id: 'HEATMAP', label: 'HEATMAP', cmd: 'MAP' },
+        { id: 'WATCH', label: 'WATCHLIST', cmd: 'WL' },
+      ].map((item) => (
+        <button
+          key={item.id}
+          onClick={() => onNav(item.id)}
+          className="w-full text-left px-3 py-1.5 text-[10px] font-bold text-fg hover:bg-acc/10 hover:text-acc transition-colors flex justify-between"
+        >
+          <span>{item.label}</span>
+          <span className="text-[9px] opacity-30">{item.cmd}</span>
+        </button>
+      ))}
+    </nav>
+    <div className="p-4 border-t border-border-custom">
+      <div className="text-[9px] text-acc2 font-bold animate-pulse">● LIVE CONNECTED</div>
+      <div className="text-[8px] text-[#666] mt-1">GKE-FREE-01 // SG-1</div>
+    </div>
+  </aside>
+);
+
+const SignalFeed = () => {
+  const [signals, setSignals] = useState<Signal[]>([]);
+
+  // Mock signals for now
+  useEffect(() => {
+    setSignals([
+      { id: 1, ticker: 'BBCA', title: 'INSIDER CLUSTER', body: '3 directors accumulating near 9000 support.', severity: 'HIGH', timestamp: '14:20:11' },
+      { id: 2, ticker: 'GOTO', title: 'VOL ANOMALY', body: '300% volume spike vs 20d ADV.', severity: 'MED', timestamp: '13:45:02' },
+      { id: 3, ticker: 'TLKM', title: 'BROKER FLOW', body: 'Heavy accumulation by foreign brokers.', severity: 'LOW', timestamp: '12:10:55' },
+    ]);
+  }, []);
+
+  return (
+    <aside className="w-[300px] border-l border-border-custom bg-black flex flex-col">
+      <div className="p-2 border-b border-border-custom bg-surface text-[10px] font-bold text-acc tracking-tight uppercase">
+        Intelligence Feed
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+        {signals.map((s) => (
+          <div key={s.id} className={`p-2 border-l-2 ${
+            s.severity === 'HIGH' ? 'border-acc3 bg-acc3/5' : 
+            s.severity === 'MED' ? 'border-acc bg-acc/5' : 'border-acc4 bg-acc4/5'
+          }`}>
+            <div className="flex justify-between items-start mb-1">
+              <span className="text-[10px] font-black text-white">{s.ticker}</span>
+              <span className="text-[8px] text-[#666]">{s.timestamp}</span>
+            </div>
+            <div className="text-[10px] font-bold text-acc leading-tight mb-1">{s.title}</div>
+            <p className="text-[9px] text-[#999] leading-tight">{s.body}</p>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+};
 
 export default function Home() {
-  const [viewMode, setViewMode] = useState<'recent' | 'cluster'>('recent');
   const [data, setData] = useState<InsiderTransaction[]>([]);
-  const [clusters, setClusters] = useState<ClusterGroup[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isScraping, setIsScraping] = useState(false);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  
-  // Cluster Filters
-  const [minInsiders, setMinInsiders] = useState(2);
-  const [clusterDays, setClusterDays] = useState(30);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      
-      if (viewMode === 'recent') {
-        const response = await fetch(`${apiUrl}/insider/latest`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const json = await response.json();
-        setData(json);
-      } else {
-        const response = await fetch(`${apiUrl}/insider/clusters?min_insiders=${minInsiders}&days=${clusterDays}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const json = await response.json();
-        setClusters(json);
-      }
+      const response = await fetch(`${apiUrl}/insider/latest`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`API Error: ${response.status}`);
+      const json = await response.json();
+      setData(json);
     } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Unknown connection error');
+      setError(err instanceof Error ? err.message : 'Connection error');
     } finally {
       setLoading(false);
     }
-  }, [viewMode, minInsiders, clusterDays]);
-
-  const triggerFullScrape = async () => {
-    if (!confirm("This will scrape the FULL year 2026. It may take several minutes. Continue?")) return;
-    setIsScraping(true);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${apiUrl}/insider/scrape?full_year=true`);
-      if (response.ok) {
-        alert("Full 2026 Scraper triggered! Monitoring IDX history now.");
-      } else {
-        throw new Error("Failed to trigger full scrape");
-      }
-    } catch (err) {
-      alert("Error: " + (err instanceof Error ? err.message : "Unknown error"));
-    } finally {
-      setIsScraping(false);
-    }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const formatNumber = (num: string | number) => {
-    const n = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(n)) return '0';
-    return new Intl.NumberFormat('id-ID').format(n);
-  };
-
-  const filteredData = data.filter(t => 
-    t.ticker.toUpperCase().includes(searchTerm.toUpperCase()) || 
-    t.insider_name.toUpperCase().includes(searchTerm.toUpperCase())
-  );
-
   return (
-    <div className="min-h-screen bg-[#0D1117] text-[#C9D1D9] p-4 font-sans text-sm">
-      <header className="sticky top-0 z-10 bg-[#0D1117]/90 backdrop-blur border-b border-[#30363D] py-3 flex items-center justify-between px-4">
+    <div className="h-screen flex flex-col bg-bg text-fg font-mono overflow-hidden">
+      {/* Scanline & CRT Effect */}
+      <div className="scanline"></div>
+      <div className="crt-overlay"></div>
+
+      {/* Top Header */}
+      <header className="h-8 bg-black border-b border-border-custom flex items-center px-4 justify-between z-10">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center font-bold text-white text-xs">IX</div>
-            <h1 className="text-lg font-bold tracking-tight text-[#F0F6FC]">IDX OpenInsider</h1>
+            <span className="text-acc font-black text-xs">IDX:TERMINAL</span>
+            <span className="text-[#666] text-[10px] tracking-widest">ASIMMETRIC INTEL</span>
           </div>
-          
-          <nav className="flex bg-[#161B22] rounded-lg p-1 border border-[#30363D]">
-            <button 
-              onClick={() => setViewMode('recent')}
-              className={`px-4 py-1 rounded-md transition-all ${viewMode === 'recent' ? 'bg-[#21262D] text-white shadow-sm' : 'text-[#8B949E] hover:text-[#C9D1D9]'}`}
-            >
-              Latest Feed
-            </button>
-            <button 
-              onClick={() => setViewMode('cluster')}
-              className={`px-4 py-1 rounded-md transition-all ${viewMode === 'cluster' ? 'bg-[#21262D] text-white shadow-sm' : 'text-[#8B949E] hover:text-[#C9D1D9]'}`}
-            >
-              Cluster Buys 🔥
-            </button>
-          </nav>
+          <div className="flex gap-4">
+            <div className="text-[10px] text-acc2"><span className="opacity-50">IHSG</span> 7,234.12 <span className="text-[8px]">+0.12%</span></div>
+            <div className="text-[10px] text-acc3"><span className="opacity-50">USDIDR</span> 15,670 <span className="text-[8px]">-0.05%</span></div>
+          </div>
         </div>
-
-        <div className="flex gap-4 items-center">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B949E]">🔍</span>
-            <input 
-              type="text" 
-              placeholder="Filter Ticker/Name..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-[#0D1117] border border-[#30363D] rounded-md pl-9 pr-4 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-64"
-            />
-          </div>
-          <button 
-            onClick={triggerFullScrape}
-            disabled={isScraping}
-            className={`text-xs bg-blue-600/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded hover:bg-blue-600/20 transition-all ${isScraping ? 'opacity-50' : ''}`}
-          >
-            {isScraping ? 'Scraping YTD...' : 'Scrape YTD'}
-          </button>
+        <div className="flex items-center gap-4">
+          <div className="text-[9px] text-[#666]">SUN MAY 10 2026 // 15:42:01 WIB</div>
+          <div className="w-2 h-2 rounded-full bg-acc2 shadow-[0_0_5px_rgba(0,230,118,0.5)]"></div>
         </div>
       </header>
 
-      <main className="mt-6 max-w-[1600px] mx-auto px-4">
-        {viewMode === 'cluster' && (
-          <div className="mb-6 flex gap-6 items-center bg-[#161B22] p-4 rounded-lg border border-[#30363D]">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase font-bold text-[#8B949E]">Min Unique Insiders</label>
-              <input 
-                type="number" 
-                value={minInsiders} 
-                onChange={(e) => setMinInsiders(parseInt(e.target.value))}
-                className="bg-[#0D1117] border border-[#30363D] rounded px-2 py-1 w-20 text-white"
-              />
+      {/* Main Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar onNav={() => {}} />
+        
+        <main className="flex-1 flex flex-col bg-black border-r border-border-custom relative">
+          {/* Main Panel Toolbar */}
+          <div className="h-6 bg-surface border-b border-border-custom flex items-center px-2 justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-bold text-acc">VIEW: INSIDER_FEED</span>
+              <span className="text-[9px] text-[#444]">|</span>
+              <span className="text-[9px] text-[#888]">FILTER: ALL_SECTORS</span>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase font-bold text-[#8B949E]">Rolling Window (Days)</label>
-              <select 
-                value={clusterDays} 
-                onChange={(e) => setClusterDays(parseInt(e.target.value))}
-                className="bg-[#0D1117] border border-[#30363D] rounded px-2 py-1 text-white"
-              >
-                <option value={7}>7 Days</option>
-                <option value={30}>30 Days</option>
-                <option value={90}>90 Days</option>
-              </select>
-            </div>
-            <div className="ml-auto text-right">
-              <p className="text-xs text-blue-400 font-medium">Found {clusters.length} Cluster Signals</p>
-              <p className="text-[10px] text-[#8B949E]">Tracking high-conviction accumulation</p>
+            <div className="flex gap-2">
+               <button onClick={fetchData} className="text-[9px] text-acc hover:underline">REFRESH</button>
             </div>
           </div>
-        )}
 
-        {loading && (data.length === 0 && clusters.length === 0) ? (
-          <div className="py-20 text-center text-[#8B949E] animate-pulse text-lg">
-            📡 Synchronizing Institutional Intelligence...
-          </div>
-        ) : error ? (
-          <div className="bg-red-900/10 border border-red-500/50 text-red-400 p-6 rounded-lg text-center">
-            <p className="font-medium">Connection Error: {error}</p>
-            <button onClick={fetchData} className="mt-4 bg-red-500 text-white px-4 py-1 rounded text-sm">Retry</button>
-          </div>
-        ) : viewMode === 'recent' ? (
-          <div className="overflow-hidden rounded-lg border border-[#30363D] bg-[#161B22]">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-[#0D1117] text-left border-b border-[#30363D]">
-                  <th className="p-3 font-semibold text-[#8B949E]">Date</th>
-                  <th className="p-3 font-semibold text-[#8B949E]">Ticker</th>
-                  <th className="p-3 font-semibold text-[#8B949E]">Insider Name</th>
-                  <th className="p-3 font-semibold text-[#8B949E]">Role</th>
-                  <th className="p-3 font-semibold text-[#8B949E]">Action</th>
-                  <th className="p-3 font-semibold text-[#8B949E] text-right">Value (IDR)</th>
-                  <th className="p-3 font-semibold text-[#8B949E] text-center">RVOL</th>
-                  <th className="p-3 font-semibold text-[#8B949E] text-center">Score</th>
-                  <th className="p-3 font-semibold text-[#8B949E] text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#30363D]">
-                {filteredData.map((row) => {
-                  const reasons = row.score_reasons ? JSON.parse(row.score_reasons) : [];
-                  return (
-                    <tr key={row.id} className="hover:bg-[#1C2128] transition-colors group">
-                      <td className="p-3 text-[#8B949E] whitespace-nowrap">{row.date}</td>
-                      <td className="p-3" onClick={() => setSelectedTicker(row.ticker)} title="Click for Institutional Intelligence">
-                        <div className="flex flex-col cursor-pointer hover:underline">
-                          <span className="font-bold text-blue-400">{row.ticker}</span>
-                          {row.is_buyback && (
-                            <span className="text-[8px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1 rounded-sm mt-1 w-fit font-bold">
-                              BUYBACK
-                            </span>
-                          )}
-                        </div>
+          <div className="flex-1 overflow-auto p-0">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-acc text-[10px] animate-pulse">
+                INITIALIZING DATA PIPELINE...
+              </div>
+            ) : error ? (
+              <div className="p-4 text-acc3 text-xs font-bold">ERROR: {error}</div>
+            ) : (
+              <table className="w-full dense-table">
+                <thead>
+                  <tr>
+                    <th className="text-left">DATE</th>
+                    <th className="text-left">TICKER</th>
+                    <th className="text-left">INSIDER</th>
+                    <th className="text-left">ROLE</th>
+                    <th className="text-left">TYPE</th>
+                    <th className="text-right">SHARES</th>
+                    <th className="text-right">PRICE</th>
+                    <th className="text-right">VALUE (IDR)</th>
+                    <th className="text-center">CONF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map((row) => (
+                    <tr key={row.id} className="hover:bg-acc/5 cursor-pointer">
+                      <td className="text-[#666]">{row.date}</td>
+                      <td className="text-acc4 font-black">{row.ticker}</td>
+                      <td className="text-white font-bold">{row.insider_name}</td>
+                      <td className="text-[#888]">{row.role}</td>
+                      <td>
+                        <span className={row.transaction_type === 'BUY' ? 'text-acc2' : 'text-acc3'}>
+                          {row.transaction_type}
+                        </span>
                       </td>
-                      <td className="p-3 font-medium text-[#F0F6FC]">{row.insider_name}</td>
-                      <td className="p-3 text-[10px] text-[#8B949E] uppercase tracking-wider">{row.role?.replace('_', ' ')}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold ${
-                          row.transaction_type === 'BUY' ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'
-                        }`}>{row.transaction_type}</span>
+                      <td className="text-right font-mono">
+                        {new Intl.NumberFormat('id-ID').format(typeof row.shares === 'string' ? parseFloat(row.shares) : row.shares)}
                       </td>
-                      <td className="p-3 text-right font-mono text-[#F0F6FC]">{formatNumber(row.value)}</td>
-                      <td className="p-3 text-center">
-                        {row.rvol && (
-                          <span className={`text-[10px] font-bold ${row.rvol >= 2 ? 'text-orange-400' : 'text-[#8B949E]'}`}>
-                            {row.rvol}x
-                          </span>
-                        )}
+                      <td className="text-right font-mono text-acc">
+                        {new Intl.NumberFormat('id-ID').format(typeof row.price === 'string' ? parseFloat(row.price) : row.price)}
                       </td>
-                      <td className="p-3 text-center">
-                        <div className="relative inline-block group/tooltip">
-                          <span className={`w-6 h-6 inline-flex items-center justify-center rounded-full text-[10px] font-bold cursor-help transition-all ${
-                            row.score >= 5 ? 'bg-green-600 text-white shadow-[0_0_8px_rgba(22,163,74,0.4)]' : 'bg-[#30363D] text-[#8B949E]'
-                          }`}>
-                            {row.score > 0 ? `+${row.score}` : row.score}
-                          </span>
-                          
-                          {/* Tooltip */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 bg-[#21262D] border border-[#30363D] p-3 rounded-lg shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none">
-                            <p className="text-[10px] font-bold text-white mb-2 border-b border-[#30363D] pb-1 uppercase tracking-tighter">Conviction Breakdown</p>
-                            <ul className="space-y-1.5">
-                              {reasons.map((r: string, i: number) => (
-                                <li key={i} className="text-[10px] text-[#8B949E] flex justify-between gap-4">
-                                  <span className="text-left">{r}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
+                      <td className="text-right font-mono text-white">
+                        {new Intl.NumberFormat('id-ID').format(typeof row.value === 'string' ? parseFloat(row.value) : row.value)}
                       </td>
-                      <td className="p-3 text-center">
-                        <a 
-                          href={`https://stockbit.com/symbol/${row.ticker}/insider`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded text-[10px] font-bold transition-all active:scale-95"
-                        >
-                          Trade
-                        </a>
+                      <td className="text-center">
+                        <span className={`px-1 rounded ${row.score >= 5 ? 'bg-acc2 text-black' : 'text-[#666]'}`}>
+                          {row.score}
+                        </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clusters.map((cluster) => (
-              <div key={cluster.ticker} className="bg-[#161B22] border border-[#30363D] rounded-lg overflow-hidden flex flex-col hover:border-blue-500/50 transition-colors">
-                <div className="p-4 border-b border-[#30363D] flex justify-between items-start bg-[#0D1117]">
-                  <div className="cursor-pointer group/ticker" onClick={() => setSelectedTicker(cluster.ticker)}>
-                    <h3 className="text-xl font-bold text-blue-400 group-hover/ticker:underline">{cluster.ticker}</h3>
-                    <p className="text-[10px] text-[#8B949E] uppercase tracking-widest mt-1">High-Conviction Accumulation</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-1 rounded-md text-xs font-bold">
-                      {cluster.insider_count} unique buyers
-                    </span>
-                    <p className="text-[10px] text-[#8B949E] mt-2">Latest: {cluster.last_date}</p>
-                  </div>
-                </div>
-                <div className="p-4 flex-1">
-                  <div className="flex justify-between mb-4">
-                    <span className="text-[#8B949E]">30D Total Value:</span>
-                    <span className="font-mono text-[#F0F6FC] font-bold">IDR {formatNumber(cluster.total_value)}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-[#8B949E] uppercase">Participating Insiders:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {cluster.insiders.map(name => (
-                        <span key={name} className="bg-[#30363D] text-[#C9D1D9] px-2 py-0.5 rounded text-[10px]">{name}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="p-2 bg-[#0D1117]/50 border-t border-[#30363D] flex gap-2">
-                   <button 
-                    onClick={() => {
-                      setSearchTerm(cluster.ticker);
-                      setViewMode('recent');
-                    }}
-                    className="flex-1 bg-blue-600/10 text-blue-400 text-[10px] font-bold py-2 rounded hover:bg-blue-600/20"
-                   >
-                     INSPECT TRANSACTIONS
-                   </button>
-                   <a 
-                    href={`https://stockbit.com/symbol/${cluster.ticker}/insider`}
-                    target="_blank"
-                    className="bg-[#21262D] text-[#C9D1D9] text-[10px] font-bold px-3 py-2 rounded hover:bg-[#30363D]"
-                   >
-                     TRADE ↗
-                   </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+        </main>
 
-      {/* Ticker Drawer Sidebar */}
-      {selectedTicker && (
-        <TickerDrawer 
-          ticker={selectedTicker} 
-          onClose={() => setSelectedTicker(null)} 
-        />
-      )}
-    </div>
-  );
-}
-
-function TickerDrawer({ ticker, onClose }: { ticker: string, onClose: () => void }) {
-  const [loading, setLoading] = useState(true);
-  const [absorption, setAbsorption] = useState<any>(null);
-  const [accumulation, setAccumulation] = useState<any[]>([]);
-
-  useEffect(() => {
-    async function fetchTickerData() {
-      setLoading(true);
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const [absRes, accRes] = await Promise.all([
-          fetch(`${apiUrl}/insider/absorption/${ticker}`),
-          fetch(`${apiUrl}/insider/accumulation/${ticker}`)
-        ]);
-        
-        if (absRes.ok) setAbsorption(await absRes.json());
-        if (accRes.ok) setAccumulation(await accRes.json());
-      } catch (err) {
-        console.error("Drawer fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchTickerData();
-  }, [ticker]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* Sidebar Panel */}
-      <div className="relative w-full max-w-md bg-[#0D1117] border-l border-[#30363D] shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-        <header className="p-6 border-b border-[#30363D] flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black text-blue-400 tracking-tighter">{ticker}</h2>
-            <p className="text-[10px] text-[#8B949E] uppercase tracking-widest font-bold">Institutional Intelligence Engine</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-[#21262D] rounded-full text-[#8B949E] transition-colors">
-            ✕
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 space-y-4">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-xs text-[#8B949E] font-mono">CALCULATING ABSORPTION...</p>
-            </div>
-          ) : (
-            <>
-              {/* Absorption Ratio Card */}
-              <section className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 shadow-inner">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xs font-bold text-[#8B949E] uppercase tracking-wider">Absorption Ratio</h3>
-                  <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">90-Day Conviction</span>
-                </div>
-                
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-5xl font-black tracking-tighter ${
-                    (absorption?.absorption_ratio || 0) >= 1.0 ? 'text-green-400' : 'text-[#F0F6FC]'
-                  }`}>
-                    {absorption?.absorption_ratio?.toFixed(2)}x
-                  </span>
-                  <span className="text-xs text-[#8B949E] font-medium">of 30D ADV</span>
-                </div>
-                
-                <p className="mt-4 text-[11px] text-[#8B949E] leading-relaxed">
-                  Insiders have absorbed <span className="text-[#F0F6FC] font-bold">
-                    {new Intl.NumberFormat('id-ID').format(absorption?.total_shares_bought || 0)}
-                  </span> shares against a 30-day average daily volume of <span className="text-[#F0F6FC] font-bold">
-                    {new Intl.NumberFormat('id-ID').format(absorption?.adv_30d || 0)}
-                  </span>.
-                </p>
-                
-                {(absorption?.absorption_ratio || 0) >= 1.0 && (
-                  <div className="mt-4 p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
-                    <p className="text-[10px] text-green-400 font-bold uppercase tracking-tight flex items-center gap-2">
-                      <span>⚡</span> High Conviction Signal: Supply Choke Detected
-                    </p>
-                  </div>
-                )}
-              </section>
-
-              {/* Accumulation Price Map */}
-              <section>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xs font-bold text-[#8B949E] uppercase tracking-wider">Accumulation Price Map</h3>
-                  <span className="text-[10px] text-blue-400 font-mono">Live Price: Rp {absorption?.current_price || 'N/A'}</span>
-                </div>
-                
-                <div className="relative border-l border-[#30363D] ml-2 pl-4 py-2">
-                  {accumulation.length === 0 ? (
-                    <p className="text-xs text-[#8B949E] py-10 text-center">No historical price clusters found.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {accumulation.map((node, i) => {
-                        const isCurrent = Math.abs(node.price - absorption?.current_price) / node.price < 0.01;
-                        const maxShares = Math.max(...accumulation.map(n => n.shares));
-                        const widthPct = (node.shares / maxShares) * 100;
-
-                        return (
-                          <div key={i} className={`group relative flex flex-col gap-1 transition-all ${isCurrent ? 'scale-[1.02]' : 'opacity-80 hover:opacity-100'}`}>
-                            <div className="flex justify-between text-[10px] font-mono">
-                              <span className={`font-bold ${isCurrent ? 'text-blue-400' : 'text-[#8B949E]'}`}>
-                                Rp {new Intl.NumberFormat('id-ID').format(node.price)}
-                                {isCurrent && <span className="ml-2 text-[8px] bg-blue-500 text-white px-1 rounded">AT MARKET</span>}
-                              </span>
-                              <span className="text-[#8B949E]">{new Intl.NumberFormat('id-ID').format(node.shares)} SHRS</span>
-                            </div>
-                            <div className="h-4 w-full bg-[#161B22] rounded-sm overflow-hidden border border-[#30363D]">
-                              <div 
-                                className={`h-full transition-all duration-1000 ${
-                                  node.type === 'BUY' ? 'bg-green-500/40 border-r-2 border-green-400' : 'bg-red-500/40 border-r-2 border-red-400'
-                                }`}
-                                style={{ width: `${widthPct}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  
-                  {/* Vertical Price Marker (Current) */}
-                  <div className="absolute top-0 bottom-0 left-0 w-0.5 bg-blue-500/20 pointer-events-none" />
-                </div>
-              </section>
-
-              {/* Action */}
-              <div className="pt-6">
-                 <a 
-                    href={`https://stockbit.com/symbol/${ticker}/insider`}
-                    target="_blank"
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 text-sm"
-                  >
-                    Execute Trade on Stockbit ↗
-                  </a>
-              </div>
-            </>
-          )}
-        </div>
+        <SignalFeed />
       </div>
+
+      {/* Command Bar */}
+      <footer className="h-6 bg-acc border-t border-border-custom flex items-center px-1 gap-2 z-10">
+        <span className="text-black font-black text-[10px] px-1 bg-white">COMMAND</span>
+        <input 
+          type="text" 
+          placeholder="ENTER COMMAND (e.g. INSIDER BBCA, FLOW GOTO)..."
+          className="bg-transparent border-none outline-none text-black text-[10px] font-bold w-full placeholder:text-black/50"
+          autoFocus
+        />
+        <div className="flex gap-4 px-2 whitespace-nowrap">
+          <div className="text-[9px] font-black text-black">ALT+S: SEARCH</div>
+          <div className="text-[9px] font-black text-black">ALT+Q: EXIT</div>
+        </div>
+      </footer>
     </div>
   );
 }

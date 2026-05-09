@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 from sqlalchemy.orm import Session
 from .database import SessionLocal
-from .models import InsiderTransaction
-from .utils import calculate_score
+from .models import InsiderTransaction, Stock
+from .utils import calculate_score, calculate_confidence
 
 def seed_data():
     db = SessionLocal()
@@ -86,6 +86,15 @@ def seed_data():
             # Check if already exists
             existing = db.query(InsiderTransaction).filter(InsiderTransaction.source_url == item["source_url"]).first()
             if not existing:
+                # Resolve stock_id
+                ticker = item["ticker"]
+                stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+                if not stock:
+                    stock = Stock(ticker=ticker, name=f"Company {ticker}")
+                    db.add(stock)
+                    db.flush()
+                
+                item["stock_id"] = stock.id
                 item["value"] = item["shares"] * item["price"]
                 item["filing_date"] = item["date"]
                 item["issuer_name"] = ""
@@ -93,7 +102,11 @@ def seed_data():
                 item["ownership_after"] = 0
                 item["ownership_change_pct"] = 0
                 item["purpose"] = "Investasi"
-                item["score"] = calculate_score(item, db=db)
+                
+                score, reasons = calculate_score(item, db=db)
+                item["score"] = score
+                item["score_reasons"] = json.dumps(reasons)
+                item["confidence"] = calculate_confidence(item)
                 
                 transaction = InsiderTransaction(**item)
                 db.add(transaction)

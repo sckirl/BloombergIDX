@@ -12,31 +12,26 @@ from sqlalchemy.orm import Session
 from playwright.sync_api import sync_playwright
 import pdfplumber
 
+from .logger import logger
 from .database import SessionLocal, engine
-from .models import InsiderTransaction, Base
-from .utils import normalize_role, calculate_score, get_market_metadata, get_price_on_date, calculate_ownership_change
+from .models import InsiderTransaction, Base, Stock
+from .utils import normalize_role, calculate_score, calculate_confidence, get_market_metadata, get_price_on_date, calculate_ownership_change
 
 # Ensure DB tables are created
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified.")
+except Exception as e:
+    logger.error(f"Error creating tables: {e}")
 
-# Final correct IDX API URL
-IDX_API_URL = "https://www.idx.co.id/primary/Announcement/GetAnnouncementList"
-KEYWORDS = [
-    "Laporan Kepemilikan",
-    "Informasi Hasil Pelaksanaan Pembelian Kembali Saham"
-]
-RESERVED_KEYWORDS = ["KETR", "LAPP", "LAMP", "BERI", "DATA", "INFO", "LAMP"] # Common misparsed tickers
-
-# Cache for company-specific formatting
-COMPANY_FORMATS_FILE = "backend/company_formats.json"
-
+# ... (skip to load_company_formats)
 def load_company_formats() -> Dict[str, Any]:
     try:
         if os.path.exists(COMPANY_FORMATS_FILE):
             with open(COMPANY_FORMATS_FILE, "r") as f:
                 return json.load(f)
     except Exception as e:
-        print(f"Error loading company formats: {e}")
+        logger.error(f"Error loading company formats: {e}")
     return {}
 
 def save_company_formats(formats: Dict[str, Any]):
@@ -44,7 +39,7 @@ def save_company_formats(formats: Dict[str, Any]):
         with open(COMPANY_FORMATS_FILE, "w") as f:
             json.dump(formats, f, indent=4)
     except Exception as e:
-        print(f"Error saving company formats: {e}")
+        logger.error(f"Error saving company formats: {e}")
 
 def extract_transaction_date(text: str) -> Optional[datetime.date]:
     """
@@ -266,6 +261,11 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
 
         t_type = "SELL" if any(x in full_text.lower() for x in ["jual", "sales", "pengurangan", "pelepasan"]) else "BUY"
 
+        # Ownership Change Percentage Calculation
+        change_pct = 0
+        if ownership_before > 0:
+            change_pct = ((ownership_after - ownership_before) / ownership_before) * 100
+
         transactions.append({
             "ticker": ticker,
             "issuer_name": "",
@@ -284,7 +284,7 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
             "source_url": source_url
         })
     except Exception as e:
-        print(f"Parser Error: {e}")
+        logger.error(f"Parser Error for {source_url}: {e}")
     return transactions
 
 def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
@@ -296,28 +296,41 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
         added = 0
         for t_data in parsed:
             t_data["is_buyback"] = is_buyback
+            
+            # Resolve stock_id
+            ticker = t_data["ticker"]
+            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+            if not stock:
+                # Create stock if it doesn't exist
+                stock = Stock(ticker=ticker, name=f"Company {ticker}")
+                db.add(stock)
+                db.flush() # Get the ID
+            
+            t_data["stock_id"] = stock.id
+
             m_meta = get_market_metadata(t_data["ticker"])
             t_data["rvol"] = m_meta["rvol"]
             t_data["price_history"] = json.dumps(m_meta["price_history"])
             score, reasons = calculate_score(t_data, db=db)
             t_data["score"] = score
             t_data["score_reasons"] = json.dumps(reasons)
+            t_data["confidence"] = calculate_confidence(t_data)
             db.add(InsiderTransaction(**t_data))
             added += 1
         
         db.commit()
         if added > 0:
-            print(f"  - Successfully added {added} rows from {url}.")
+            logger.info(f"Successfully added {added} rows from {url}.")
         return added
     except Exception as e:
-        print(f"  - Error processing {url}: {e}")
+        logger.error(f"Error processing {url}: {e}")
         db.rollback()
         return 0
     finally:
         db.close()
 
 def run_scraper(full_year=False):
-    print(f"Starting Scraper at {datetime.now()} (Full Year: {full_year})")
+    logger.info(f"Starting Scraper (Full Year: {full_year})")
     db = SessionLocal()
     
     with sync_playwright() as p:
@@ -332,15 +345,15 @@ def run_scraper(full_year=False):
             
             # Using browser context fetch to bypass Cloudflare
             for keyword in KEYWORDS:
-                print(f"Searching: {keyword}")
+                logger.info(f"Searching: {keyword}")
                 try:
                     if full_year:
-                        date_from = "20260101"
-                        date_to = "20261231"
+                        date_from = f"{datetime.now().year}0101"
+                        date_to = f"{datetime.now().year}1231"
                         page_size = 1000
                     else:
                         date_from = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
-                        date_to = "20261231"
+                        date_to = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
                         page_size = 50
                     
                     script = f"""
@@ -354,9 +367,9 @@ def run_scraper(full_year=False):
                     items = data.get("Results") or data.get("Replies") or []
                     all_items.extend(items)
                 except Exception as e:
-                    print(f"Search failed for {keyword}: {e}")
+                    logger.error(f"Search failed for {keyword}: {e}")
 
-            print(f"Total Disclosures Found: {len(all_items)}")
+            logger.info(f"Total Disclosures Found: {len(all_items)}")
 
             # Sort by published date descending
             def get_date(x):
