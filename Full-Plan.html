@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDX Bloomberg Terminal — Agent Handover Plan</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg:       #080b10;
+  --bg2:      #0d1117;
+  --bg3:      #131923;
+  --bg4:      #1a2333;
+  --bg5:      #212f42;
+  --border:   #1e2d42;
+  --border2:  #2a3f5a;
+  --text:     #d4dde8;
+  --muted:    #5a6e84;
+  --dim:      #3a4e64;
+  --acc:      #f0a500;
+  --acc2:     #00c9a0;
+  --acc3:     #4d9fff;
+  --acc4:     #ff5a6e;
+  --acc5:     #b060ff;
+  --fast:     #00c9a0;
+  --pro:      #4d9fff;
+  --heavy:    #f0a500;
+  --crit:     #ff5a6e;
+  --high:     #f0a500;
+  --med:      #4d9fff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── SCAN LINE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: var(--acc);
+}
+.logo span { color: var(--muted); }
+.header-meta {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  align-items: center;
+}
+.tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  padding: 3px 10px;
+  border-radius: 1px;
+}
+.tag-green { background: #00c9a015; color: var(--fast); border: 1px solid #00c9a030; }
+.tag-blue  { background: #4d9fff15; color: var(--pro);  border: 1px solid #4d9fff30; }
+.tag-amber { background: #f0a50015; color: var(--acc);  border: 1px solid #f0a50030; }
+.tag-red   { background: #ff5a6e15; color: var(--crit); border: 1px solid #ff5a6e30; }
+.tag-purple{ background: #b060ff15; color: var(--acc5); border: 1px solid #b060ff30; }
+.tag-muted { background: #1e2d4280; color: var(--muted); border: 1px solid var(--border); }
+
+.nav {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  overflow-x: auto;
+}
+.nav-item {
+  padding: 8px 16px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+  display: block;
+}
+.nav-item:hover { color: var(--text); }
+.nav-item.active { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* ── PAGE ── */
+.page { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+/* ── SECTION HEADERS ── */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+}
+.section-sub { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+/* ── EXECUTIVE BLOCK ── */
+.exec-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 32px;
+}
+.exec-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 14px;
+}
+.exec-label { font-size: 9px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+.exec-val { font-size: 22px; font-weight: 700; color: var(--acc); font-family: 'Syne', sans-serif; }
+.exec-sub { font-size: 9px; color: var(--muted); margin-top: 3px; }
+
+/* ── PARALLEL TRACK LAYOUT ── */
+.phase-block {
+  margin-bottom: 48px;
+}
+.phase-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.phase-num {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--acc);
+  padding: 4px 12px;
+  letter-spacing: 2px;
+}
+.phase-title-txt {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text);
+}
+.phase-weeks { font-size: 10px; color: var(--muted); margin-left: auto; }
+
+.tracks {
+  display: grid;
+  gap: 8px;
+}
+.track {
+  display: grid;
+  gap: 8px;
+}
+.track-label {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.track-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.track-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 8px;
+}
+
+/* ── AGENT CARD ── */
+.agent-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border2);
+  padding: 0;
+  transition: border-color 0.15s;
+  position: relative;
+}
+.agent-card.fast { border-left-color: var(--fast); }
+.agent-card.pro  { border-left-color: var(--pro);  }
+.agent-card.heavy{ border-left-color: var(--heavy); }
+.agent-card.heavy { background: #0d1117; }
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+.agent-type-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+}
+.fast .agent-type-badge  { background: #00c9a020; color: var(--fast); border: 1px solid #00c9a040; }
+.pro  .agent-type-badge  { background: #4d9fff20; color: var(--pro);  border: 1px solid #4d9fff40; }
+.heavy .agent-type-badge { background: #f0a50020; color: var(--acc);  border: 1px solid #f0a50040; }
+
+.agent-id {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.agent-ctx {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--muted);
+}
+.agent-ctx span {
+  color: var(--acc2);
+  font-weight: 600;
+}
+
+.agent-body { padding: 14px; }
+
+.agent-mission {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--acc2);
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 2px solid var(--acc2);
+  line-height: 1.5;
+}
+
+.agent-section {
+  margin-bottom: 12px;
+}
+.agent-section-title {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.agent-text {
+  font-size: 10px;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.spec-list {
+  list-style: none;
+}
+.spec-list li {
+  font-size: 10px;
+  color: var(--text);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  line-height: 1.5;
+}
+.spec-list li::before {
+  content: '▸';
+  color: var(--acc);
+  flex-shrink: 0;
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.code-block {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  font-size: 10px;
+  color: var(--acc2);
+  line-height: 1.8;
+  border-radius: 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-comment { color: var(--muted); }
+.code-key { color: var(--acc3); }
+.code-val { color: var(--acc); }
+.code-str { color: var(--fast); }
+
+.io-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.io-box {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+}
+.io-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-bottom: 5px; }
+.io-item { font-size: 10px; color: var(--text); padding: 2px 0; }
+.io-item.dep { color: var(--acc3); }
+.io-item.out { color: var(--acc2); }
+
+.accept-list li { font-size: 10px; color: var(--text); padding: 3px 0; border-bottom: 1px solid var(--border); display: flex; gap: 8px; line-height: 1.5; }
+.accept-list li::before { content: '✓'; color: var(--acc2); flex-shrink: 0; }
+.accept-list li.crit::before { content: '⚑'; color: var(--crit); }
+
+.parallel-note {
+  background: #00c9a010;
+  border: 1px solid #00c9a025;
+  padding: 6px 10px;
+  font-size: 10px;
+  color: var(--acc2);
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.parallel-note::before { content: '⟳'; color: var(--acc2); flex-shrink: 0; font-size: 12px; }
+
+.dep-note {
+  background: #f0a50008;
+  border: 1px solid #f0a50025;
+  padding: 6px 10px;
+  font-size: 10px;
+  color: var(--acc);
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.dep-note::before { content: '⚡'; color: var(--acc); flex-shrink: 0; font-size: 11px; }
+
+/* ── DIVIDERS AND LABELS ── */
+.phase-divider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  margin: 32px 0 24px;
+}
+.phase-divider-line { height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+.phase-divider-line.right { background: linear-gradient(90deg, transparent, var(--border)); }
+.phase-divider-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--muted);
+}
+
+/* ── GANTT CHART ── */
+.gantt {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 20px;
+  margin: 24px 0;
+  overflow-x: auto;
+}
+.gantt-title { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 16px; }
+.gantt-weeks {
+  display: grid;
+  grid-template-columns: 200px repeat(16, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+}
+.gantt-wk { font-size: 9px; color: var(--muted); text-align: center; padding: 2px 0; }
+.gantt-wk.phase1 { color: var(--acc3); }
+.gantt-wk.phase2 { color: var(--acc2); }
+.gantt-wk.phase3 { color: var(--acc); }
+.gantt-wk.phase4 { color: var(--crit); }
+.gantt-row {
+  display: grid;
+  grid-template-columns: 200px repeat(16, 1fr);
+  gap: 2px;
+  margin-bottom: 2px;
+  align-items: center;
+}
+.gantt-agent-name {
+  font-size: 9px;
+  color: var(--text);
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gantt-cell { height: 16px; border-radius: 0; }
+.gantt-cell.empty { background: var(--bg3); }
+.gantt-cell.fast  { background: #00c9a040; border: 1px solid #00c9a060; }
+.gantt-cell.pro   { background: #4d9fff30; border: 1px solid #4d9fff50; }
+.gantt-cell.heavy { background: #f0a50025; border: 1px solid #f0a50050; }
+.gantt-cell.start { border-left: 2px solid currentColor; }
+
+/* ── SCORING DETAIL ── */
+.score-formula {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  padding: 16px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 2.2;
+}
+.score-formula .var { color: var(--acc3); }
+.score-formula .weight { color: var(--acc); font-weight: 700; }
+.score-formula .comment { color: var(--muted); }
+.score-formula .result { color: var(--acc2); font-weight: 700; font-size: 13px; }
+
+/* ── CONTEXT WINDOW TABLE ── */
+.ctx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  margin-bottom: 24px;
+}
+.ctx-table th {
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.ctx-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.ctx-table tr:hover td { background: var(--bg3); }
+.ctx-fast { color: var(--fast); font-weight: 700; }
+.ctx-pro  { color: var(--pro);  font-weight: 700; }
+.ctx-heavy{ color: var(--heavy);font-weight: 700; }
+
+/* ── SCHEMA BLOCK ── */
+.schema-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+}
+.schema-table {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+.schema-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--acc);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Syne', sans-serif;
+}
+.schema-field {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 9px;
+}
+.sf-name { color: var(--acc2); width: 120px; flex-shrink: 0; }
+.sf-type { color: var(--muted); flex: 1; }
+.sf-pk   { color: var(--acc); font-size: 8px; }
+
+/* ── FINAL SECTION ── */
+.final-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.final-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+.final-card-title {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.final-rule {
+  font-size: 10px;
+  color: var(--text);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+.final-rule::before { content: '—'; color: var(--acc); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="logo">▪ IDX<span>TERMINAL</span></div>
+    <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">AGENT HANDOVER PLAN — CONFIDENTIAL</div>
+    <div class="header-meta">
+      <span class="tag tag-green">FAST ×14</span>
+      <span class="tag tag-blue">PRO ×16</span>
+      <span class="tag tag-amber">HEAVY ×8</span>
+      <span class="tag tag-muted">WEEKS 1–16</span>
+      <span class="tag tag-red">38 AGENTS TOTAL</span>
+    </div>
+  </div>
+  <nav class="nav">
+    <a class="nav-item active" href="#exec">EXECUTIVE</a>
+    <a class="nav-item" href="#ctx">CONTEXT WINDOWS</a>
+    <a class="nav-item" href="#gantt">GANTT</a>
+    <a class="nav-item" href="#schema">SCHEMA</a>
+    <a class="nav-item" href="#phase1">PHASE 1</a>
+    <a class="nav-item" href="#phase2">PHASE 2</a>
+    <a class="nav-item" href="#phase3">PHASE 3</a>
+    <a class="nav-item" href="#phase4">PHASE 4</a>
+    <a class="nav-item" href="#scoring">SCORING MODEL</a>
+    <a class="nav-item" href="#rules">PM RULES</a>
+  </nav>
+</div>
+
+<div class="page">
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- EXECUTIVE SUMMARY -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="exec" style="padding-top:8px">
+  <div class="section-header">
+    <div class="section-title">EXECUTIVE HANDOVER BRIEF</div>
+    <div class="section-sub">IDX Bloomberg Intelligence Terminal — Build Specification v1.0</div>
+  </div>
+
+  <div class="exec-grid">
+    <div class="exec-card">
+      <div class="exec-label">Total Agents</div>
+      <div class="exec-val">38</div>
+      <div class="exec-sub">Across 4 phases</div>
+    </div>
+    <div class="exec-card">
+      <div class="exec-label">Timeline</div>
+      <div class="exec-val">16w</div>
+      <div class="exec-sub">MVP → Public Launch</div>
+    </div>
+    <div class="exec-card">
+      <div class="exec-label">Parallel Tracks</div>
+      <div class="exec-val">3–5</div>
+      <div class="exec-sub">Per phase, simultaneously</div>
+    </div>
+    <div class="exec-card">
+      <div class="exec-label">Infra Cost</div>
+      <div class="exec-val" style="color:var(--acc2)">$0</div>
+      <div class="exec-sub">Free tier target</div>
+    </div>
+    <div class="exec-card">
+      <div class="exec-label">Blocking Deps</div>
+      <div class="exec-val" style="color:var(--crit)">7</div>
+      <div class="exec-sub">Critical path items</div>
+    </div>
+  </div>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);padding:20px;margin-bottom:32px;">
+    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px">MISSION STATEMENT</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.9;font-style:italic;border-left:3px solid var(--acc);padding-left:16px;">
+      Build a free, public, web-only Bloomberg-style intelligence terminal for Indonesian equities (IDX). 
+      The platform's singular purpose is to detect insider accumulation, smart money flows, and broker clustering 
+      <em style="color:var(--acc)">before the market realizes</em>. 
+      This is not a stock dashboard. It is an asymmetric intelligence weapon for Indonesian traders — 
+      dense, institutional, and brutally signal-focused.
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">AGENT CLASSIFICATION SYSTEM</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:32px">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-top:2px solid var(--fast);padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="tag tag-green">FAST</span>
+        <span style="font-size:11px;color:var(--text);font-weight:600">14 agents</span>
+      </div>
+      <div style="font-size:10px;color:var(--text);line-height:1.8">
+        Assigned to scaffolding, UI components, configuration, export utilities, 
+        and any task with a clear, bounded specification. Speed is the priority. 
+        Context windows: <span style="color:var(--acc2)">8K–16K tokens.</span> 
+        Do not assign FAST agents to logic that touches scoring, detection, or data parsing.
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-top:2px solid var(--pro);padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="tag tag-blue">PRO</span>
+        <span style="font-size:11px;color:var(--text);font-weight:600">16 agents</span>
+      </div>
+      <div style="font-size:10px;color:var(--text);line-height:1.8">
+        Assigned to core engineering: scrapers, schedulers, API endpoints, 
+        database integrations, and feature modules. Balanced speed + quality. 
+        Context windows: <span style="color:var(--acc2)">32K–64K tokens.</span> 
+        PRO agents own the data pipelines and all FastAPI route logic.
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-top:2px solid var(--heavy);padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="tag tag-amber">HEAVY</span>
+        <span style="font-size:11px;color:var(--text);font-weight:600">8 agents</span>
+      </div>
+      <div style="font-size:10px;color:var(--text);line-height:1.8">
+        Reserved exclusively for correctness-critical reasoning: scoring models, 
+        bandar detection, AI integration, and QA validation. Do not use HEAVY agents 
+        for scaffolding. Context windows: <span style="color:var(--acc)">64K–200K tokens.</span> 
+        Every HEAVY output requires a QA gate before merge.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- CONTEXT WINDOW TABLE -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="ctx">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">CONTEXT WINDOW ALLOCATIONS</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">Context Window Budget — All 38 Agents</div>
+    <div class="section-sub">Larger windows for agents that must reason over large corpora of data, schemas, and logic</div>
+  </div>
+
+  <table class="ctx-table">
+    <thead>
+      <tr>
+        <th>AGENT ID</th>
+        <th>TYPE</th>
+        <th>CONTEXT</th>
+        <th>RATIONALE</th>
+        <th>PHASE</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>INFRA-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>GKE + CloudRun + Supabase config. Needs to hold full infra spec + terraform/gcloud commands in context.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>SCHEMA-DB-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Full PostgreSQL schema across 8+ tables. Needs to reason over relationships, indexes, and migration order simultaneously.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>SCRAPER-IDX-01</td><td class="ctx-pro">PRO</td><td>64K</td><td>Playwright scraper must hold full IDX website structure, pagination logic, field mappings, and retry/error handling. Large because IDX HTML is unpredictable.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>SCRAPER-KSEI-01</td><td class="ctx-pro">PRO</td><td>64K</td><td>KSEI filing parser must handle multiple disclosure formats (Form 4 equivalent, ownership changes, insider transactions) with diverse HTML structures.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>SCRAPER-BROKER-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Broker transaction data from IDX. Needs to parse, clean, and normalize broker codes across 20+ active brokers with session management.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>UI-SHELL-01</td><td class="ctx-fast">FAST</td><td>16K</td><td>Next.js shell setup. Bounded task: dark theme, layout grid, typography, global CSS variables. Spec is complete.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>CMD-PALETTE-01</td><td class="ctx-fast">FAST</td><td>16K</td><td>Command palette component. Input → parse → dispatch. Self-contained. Needs only component spec and command list.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>TABLE-ENGINE-01</td><td class="ctx-fast">FAST</td><td>12K</td><td>TanStack Table setup. Install, configure, sort/filter/paginate. Well-defined output.</td><td style="color:var(--acc3)">P1</td></tr>
+      <tr><td>SCHEDULER-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>APScheduler setup with cron jobs, retry logic, dead-letter queue, and health monitoring. Needs full job spec.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>BROKER-FLOW-01</td><td class="ctx-pro">PRO</td><td>64K</td><td>Net broker flow engine with 3-day rolling window, z-score normalization, and clustering logic. Needs schema + math specification in full.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>VOL-ANOMALY-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Volume anomaly detector using historical sigma. Needs full algorithm spec, calibration data format, and API endpoint definitions.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>FILING-PARSER-01</td><td class="ctx-pro">PRO</td><td>64K</td><td>Multi-format filing parser for KSEI disclosures. Large context needed to handle format variety, edge cases, and deduplication logic.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>HEATMAP-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>Sector heatmap: API endpoint + D3/canvas frontend renderer. Bounded but needs full sector taxonomy and color encoding spec.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>INSIDER-MODULE-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Full insider terminal UI module: feed, table, drill-down, conviction badge. Needs schema + UI spec + API contract.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td><strong>SCORE-ENGINE-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>128K</strong></td><td>Core conviction scoring model. Needs full formula spec, weight calibration rationale, edge cases for IDX-specific patterns, historical bandar event reference corpus, and test suite in context simultaneously.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>SIGNAL-FEED-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Real-time intelligence feed aggregator. Needs scoring API contract, ranking algorithm, feed deduplication rules, and frontend rendering spec.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td><strong>BANDAR-PROXY-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>160K</strong></td><td>Bandar detection is the most intellectually demanding module. Needs full scoring engine output, broker cluster definitions, nominee pattern library, entity linkage heuristics, and known IDX manipulation case studies. Maximum context required.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td><strong>AI-SUMMARY-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>64K</strong></td><td>NVIDIA build.nvidia.com API integration. Needs API spec, prompt engineering templates, token budget rules, filing schema, and error/fallback handling. Heavy because prompt quality directly impacts accuracy.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td><strong>ENTITY-MAP-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>100K</strong></td><td>Nominee and politically-exposed entity mapping. Needs to reason over entity resolution heuristics, name variant matching, family/corporate graph logic, and PEP database structure.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td>ALERT-SYS-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>Alert rule engine. Threshold triggers, watchlist integration, localStorage notification store. Bounded spec.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td>WATCHLIST-01</td><td class="ctx-fast">FAST</td><td>12K</td><td>LocalStorage watchlist CRUD. Add/remove/persist/export. Self-contained component.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td>EXPORT-01</td><td class="ctx-fast">FAST</td><td>8K</td><td>CSV export utility. Column selection, IDR formatting, download trigger. Minimal context needed.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td>MOMENTUM-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Momentum convergence detector: price + volume + broker alignment signals. Needs scoring schema and algorithm spec.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td>FILING-AGGREGATOR-01</td><td class="ctx-pro">PRO</td><td>48K</td><td>Filing aggregation layer: dedup, normalize, timestamp, confidence-score. Needs parser output spec and aggregation rules.</td><td style="color:var(--acc)">P3</td></tr>
+      <tr><td><strong>PARSER-QA-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>200K</strong></td><td>Full QA validation of all parsers. Must hold every parser's output schema, edge case corpus, confidence scoring rubric, and regression test suite in context simultaneously. Maximum window is justified.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td><strong>SCORE-QA-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>128K</strong></td><td>QA validation of scoring model. Backtests against known IDX manipulation events, false positive/negative analysis, and calibration review.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td><strong>BANDAR-QA-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>128K</strong></td><td>QA of bandar detection module. End-to-end signal tracing, precision/recall measurement against reference cases, and threshold tuning.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>PERF-AUDIT-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>Performance audit: Lighthouse, database query plans, caching layer validation, API response benchmarks. Needs full infra spec and monitoring setup.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>CACHE-LAYER-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>Redis/Upstash caching strategy: TTL rules per endpoint, cache invalidation logic, request deduplication. Needs full API surface map.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>SHORTCUT-01</td><td class="ctx-fast">FAST</td><td>8K</td><td>Keyboard shortcut system. Key map, dispatch, modal documentation overlay. Fully specified output.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>LAYOUT-SAVE-01</td><td class="ctx-fast">FAST</td><td>8K</td><td>Saved local layouts via localStorage. Serialize panel state, restore, export. Bounded implementation.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>TICKER-PAGE-01</td><td class="ctx-fast">FAST</td><td>16K</td><td>Individual ticker detail page component. Assemble pre-built panels into a layout given the API contract.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>CHART-ENGINE-01</td><td class="ctx-fast">FAST</td><td>16K</td><td>Lightweight chart components (price, broker flow bar, volume anomaly). Bounded charting spec using lightweight-charts or uPlot.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>API-GATEWAY-01</td><td class="ctx-pro">PRO</td><td>32K</td><td>FastAPI route layer: all GET endpoints, pagination, sorting params, error responses. Needs full schema and response contract.</td><td style="color:var(--acc2)">P2</td></tr>
+      <tr><td>MONITOR-01</td><td class="ctx-fast">FAST</td><td>12K</td><td>Cloud Monitoring setup: request counters, scraper health metrics, alert thresholds. Config-heavy but logic-light.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>LAUNCH-01</td><td class="ctx-fast">FAST</td><td>8K</td><td>Final deploy: Vercel production deploy, CloudRun promote, Supabase prod migration, DNS. Runbook-style agent.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td>DOCS-01</td><td class="ctx-fast">FAST</td><td>16K</td><td>README, API docs, terminal command reference, and user guide. Writes from spec, not code.</td><td style="color:var(--crit)">P4</td></tr>
+      <tr><td><strong>ARCH-REVIEW-01</strong></td><td class="ctx-heavy">HEAVY</td><td><strong>150K</strong></td><td>End-of-phase architecture review. Reviews all agent outputs, identifies integration gaps, validates data flow integrity. Runs at end of P2 and P4.</td><td style="color:var(--crit)">P2/P4</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- GANTT CHART -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="gantt">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PARALLEL EXECUTION GANTT</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+
+  <div class="gantt">
+    <div class="gantt-title">AGENT EXECUTION TIMELINE — WEEKS 1–16 (PARALLELIZED)</div>
+    <div class="gantt-weeks">
+      <div></div>
+      <div class="gantt-wk phase1">W1</div><div class="gantt-wk phase1">W2</div>
+      <div class="gantt-wk phase1">W3</div><div class="gantt-wk phase1">W4</div>
+      <div class="gantt-wk phase2">W5</div><div class="gantt-wk phase2">W6</div>
+      <div class="gantt-wk phase2">W7</div><div class="gantt-wk phase2">W8</div>
+      <div class="gantt-wk phase2">W9</div>
+      <div class="gantt-wk phase3">W10</div><div class="gantt-wk phase3">W11</div>
+      <div class="gantt-wk phase3">W12</div><div class="gantt-wk phase3">W13</div>
+      <div class="gantt-wk phase4">W14</div><div class="gantt-wk phase4">W15</div>
+      <div class="gantt-wk phase4">W16</div>
+    </div>
+    <!-- rows: [name, type, start(1-indexed), end(1-indexed)] -->
+    <script>
+    const rows = [
+      ["INFRA-01",           "pro",   1,3],
+      ["SCHEMA-DB-01",       "pro",   1,3],
+      ["SCRAPER-IDX-01",     "pro",   2,5],
+      ["SCRAPER-KSEI-01",    "pro",   2,5],
+      ["SCRAPER-BROKER-01",  "pro",   3,5],
+      ["UI-SHELL-01",        "fast",  1,3],
+      ["CMD-PALETTE-01",     "fast",  2,4],
+      ["TABLE-ENGINE-01",    "fast",  3,4],
+      ["TICKER-PAGE-01",     "fast",  5,7],
+      ["CHART-ENGINE-01",    "fast",  5,7],
+      ["SCHEDULER-01",       "pro",   4,6],
+      ["API-GATEWAY-01",     "pro",   5,8],
+      ["BROKER-FLOW-01",     "pro",   5,8],
+      ["VOL-ANOMALY-01",     "pro",   5,8],
+      ["FILING-PARSER-01",   "pro",   5,8],
+      ["HEATMAP-01",         "pro",   6,9],
+      ["INSIDER-MODULE-01",  "pro",   6,9],
+      ["SCORE-ENGINE-01",    "heavy", 6,9],
+      ["ARCH-REVIEW-01",     "heavy", 9,9],
+      ["SIGNAL-FEED-01",     "pro",   10,12],
+      ["BANDAR-PROXY-01",    "heavy", 10,13],
+      ["AI-SUMMARY-01",      "heavy", 10,12],
+      ["ENTITY-MAP-01",      "heavy", 11,13],
+      ["ALERT-SYS-01",       "pro",   10,12],
+      ["MOMENTUM-01",        "pro",   11,13],
+      ["FILING-AGGREGATOR-01","pro",  10,12],
+      ["WATCHLIST-01",       "fast",  11,12],
+      ["EXPORT-01",          "fast",  12,13],
+      ["PARSER-QA-01",       "heavy", 13,15],
+      ["SCORE-QA-01",        "heavy", 13,15],
+      ["BANDAR-QA-01",       "heavy", 13,15],
+      ["PERF-AUDIT-01",      "pro",   14,15],
+      ["CACHE-LAYER-01",     "pro",   14,15],
+      ["SHORTCUT-01",        "fast",  14,15],
+      ["LAYOUT-SAVE-01",     "fast",  14,15],
+      ["MONITOR-01",         "fast",  15,16],
+      ["DOCS-01",            "fast",  15,16],
+      ["LAUNCH-01",          "fast",  16,16],
+    ];
+    const container = document.currentScript.parentElement;
+    rows.forEach(([name, type, s, e]) => {
+      const row = document.createElement('div');
+      row.className = 'gantt-row';
+      row.innerHTML = `<div class="gantt-agent-name"><span class="tag ${type==="fast"?"tag-green":type==="pro"?"tag-blue":"tag-amber"}" style="margin-right:4px;font-size:8px">${type.toUpperCase()}</span>${name}</div>`;
+      for (let w = 1; w <= 16; w++) {
+        const cell = document.createElement('div');
+        cell.className = `gantt-cell ${w >= s && w <= e ? type : 'empty'}`;
+        if (w === s && w <= e) cell.classList.add('start');
+        row.appendChild(cell);
+      }
+      container.appendChild(row);
+    });
+    </script>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- DATABASE SCHEMA -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="schema">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">DATABASE SCHEMA — AGENT SCHEMA-DB-01</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">PostgreSQL Schema — Full Specification</div>
+    <div class="section-sub">Supabase free tier · 500MB limit · All times UTC · All money IDR · Confidence scores 0.0–1.0</div>
+  </div>
+  <div class="schema-grid">
+    <div class="schema-table">
+      <div class="schema-name">stocks</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">uuid PK default gen_random_uuid()</span></div>
+      <div class="schema-field"><span class="sf-name">ticker</span><span class="sf-type">varchar(10) UNIQUE NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">name</span><span class="sf-type">text</span></div>
+      <div class="schema-field"><span class="sf-name">sector</span><span class="sf-type">varchar(100)</span></div>
+      <div class="schema-field"><span class="sf-name">subsector</span><span class="sf-type">varchar(100)</span></div>
+      <div class="schema-field"><span class="sf-name">market_cap</span><span class="sf-type">bigint (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">listing_date</span><span class="sf-type">date</span></div>
+      <div class="schema-field"><span class="sf-name">is_active</span><span class="sf-type">boolean default true</span></div>
+      <div class="schema-field"><span class="sf-name">updated_at</span><span class="sf-type">timestamptz default now()</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">price_ticks</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">bigserial PK</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">date</span><span class="sf-type">date NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">open</span><span class="sf-type">integer (IDR sen)</span></div>
+      <div class="schema-field"><span class="sf-name">high</span><span class="sf-type">integer</span></div>
+      <div class="schema-field"><span class="sf-name">low</span><span class="sf-type">integer</span></div>
+      <div class="schema-field"><span class="sf-name">close</span><span class="sf-type">integer</span></div>
+      <div class="schema-field"><span class="sf-name">volume</span><span class="sf-type">bigint (shares)</span></div>
+      <div class="schema-field"><span class="sf-name">value</span><span class="sf-type">bigint (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">scraped_at</span><span class="sf-type">timestamptz default now()</span></div>
+      <div class="schema-field"><span class="sf-name">INDEX</span><span class="sf-type">(stock_id, date DESC)</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">broker_transactions</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">bigserial PK</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">date</span><span class="sf-type">date NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">broker_code</span><span class="sf-type">varchar(10) NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">broker_name</span><span class="sf-type">text</span></div>
+      <div class="schema-field"><span class="sf-name">buy_volume</span><span class="sf-type">bigint</span></div>
+      <div class="schema-field"><span class="sf-name">sell_volume</span><span class="sf-type">bigint</span></div>
+      <div class="schema-field"><span class="sf-name">buy_value</span><span class="sf-type">bigint (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">sell_value</span><span class="sf-type">bigint (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">net_value</span><span class="sf-type">bigint GENERATED AS buy_value - sell_value</span></div>
+      <div class="schema-field"><span class="sf-name">INDEX</span><span class="sf-type">(stock_id, date DESC, broker_code)</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">insider_filings</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">uuid PK default gen_random_uuid()</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">filing_date</span><span class="sf-type">date NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">transaction_date</span><span class="sf-type">date</span></div>
+      <div class="schema-field"><span class="sf-name">insider_name</span><span class="sf-type">text NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">insider_role</span><span class="sf-type">varchar(100)</span></div>
+      <div class="schema-field"><span class="sf-name">transaction_type</span><span class="sf-type">varchar(20) — BUY/SELL/GRANT</span></div>
+      <div class="schema-field"><span class="sf-name">shares</span><span class="sf-type">bigint</span></div>
+      <div class="schema-field"><span class="sf-name">price_per_share</span><span class="sf-type">integer (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">total_value</span><span class="sf-type">bigint (IDR)</span></div>
+      <div class="schema-field"><span class="sf-name">ownership_after</span><span class="sf-type">bigint (shares)</span></div>
+      <div class="schema-field"><span class="sf-name">source_url</span><span class="sf-type">text</span></div>
+      <div class="schema-field"><span class="sf-name">hash_dedup</span><span class="sf-type">varchar(64) UNIQUE — SHA256 of key fields</span></div>
+      <div class="schema-field"><span class="sf-name">confidence</span><span class="sf-type">float default 1.0</span></div>
+      <div class="schema-field"><span class="sf-name">ai_summary</span><span class="sf-type">text nullable</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">smart_money_scores</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">bigserial PK</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">scored_at</span><span class="sf-type">timestamptz default now()</span></div>
+      <div class="schema-field"><span class="sf-name">score_total</span><span class="sf-type">integer 0–100</span></div>
+      <div class="schema-field"><span class="sf-name">component_broker_flow</span><span class="sf-type">integer 0–25</span></div>
+      <div class="schema-field"><span class="sf-name">component_insider</span><span class="sf-type">integer 0–20</span></div>
+      <div class="schema-field"><span class="sf-name">component_volume</span><span class="sf-type">integer 0–18</span></div>
+      <div class="schema-field"><span class="sf-name">component_repeated_buyer</span><span class="sf-type">integer 0–15</span></div>
+      <div class="schema-field"><span class="sf-name">component_stealth</span><span class="sf-type">integer 0–10</span></div>
+      <div class="schema-field"><span class="sf-name">component_filing</span><span class="sf-type">integer 0–7</span></div>
+      <div class="schema-field"><span class="sf-name">component_momentum</span><span class="sf-type">integer 0–5</span></div>
+      <div class="schema-field"><span class="sf-name">bandar_flag</span><span class="sf-type">boolean default false</span></div>
+      <div class="schema-field"><span class="sf-name">signal_tier</span><span class="sf-type">varchar(20) — STRONG_BUY/ACCUMULATE/WATCH/NEUTRAL/AVOID</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">broker_clusters</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">bigserial PK</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">detected_at</span><span class="sf-type">timestamptz</span></div>
+      <div class="schema-field"><span class="sf-name">broker_codes</span><span class="sf-type">text[] — array of broker codes</span></div>
+      <div class="schema-field"><span class="sf-name">cluster_type</span><span class="sf-type">varchar(30) — ACCUMULATION/DISTRIBUTION/CROSS</span></div>
+      <div class="schema-field"><span class="sf-name">window_days</span><span class="sf-type">integer default 5</span></div>
+      <div class="schema-field"><span class="sf-name">net_value_idr</span><span class="sf-type">bigint</span></div>
+      <div class="schema-field"><span class="sf-name">confidence</span><span class="sf-type">float</span></div>
+      <div class="schema-field"><span class="sf-name">bandar_proxy</span><span class="sf-type">boolean default false</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">entities</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">uuid PK</span></div>
+      <div class="schema-field"><span class="sf-name">canonical_name</span><span class="sf-type">text UNIQUE NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">name_variants</span><span class="sf-type">text[]</span></div>
+      <div class="schema-field"><span class="sf-name">entity_type</span><span class="sf-type">varchar(30) — PERSON/CORP/NOMINEE/PEP</span></div>
+      <div class="schema-field"><span class="sf-name">pep_flag</span><span class="sf-type">boolean default false</span></div>
+      <div class="schema-field"><span class="sf-name">related_entities</span><span class="sf-type">uuid[] — family/corporate links</span></div>
+      <div class="schema-field"><span class="sf-name">notes</span><span class="sf-type">text</span></div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-name">signals</div>
+      <div class="schema-field"><span class="sf-name">id</span><span class="sf-type">bigserial PK</span></div>
+      <div class="schema-field"><span class="sf-name">stock_id</span><span class="sf-type">uuid FK stocks(id)</span></div>
+      <div class="schema-field"><span class="sf-name">generated_at</span><span class="sf-type">timestamptz default now()</span></div>
+      <div class="schema-field"><span class="sf-name">signal_type</span><span class="sf-type">varchar(40) — INSIDER_BUY/BANDAR_ACCUM/VOL_ANOMALY/BROKER_CLUSTER</span></div>
+      <div class="schema-field"><span class="sf-name">title</span><span class="sf-type">text NOT NULL</span></div>
+      <div class="schema-field"><span class="sf-name">body</span><span class="sf-type">text</span></div>
+      <div class="schema-field"><span class="sf-name">score_at_signal</span><span class="sf-type">integer</span></div>
+      <div class="schema-field"><span class="sf-name">severity</span><span class="sf-type">varchar(10) — HIGH/MED/LOW</span></div>
+      <div class="schema-field"><span class="sf-name">source_ids</span><span class="sf-type">jsonb — references to causative records</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 1 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="phase1">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PHASE 1 — WEEKS 1–4</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="phase-block">
+    <div class="phase-label">
+      <div class="phase-num">PHASE 1</div>
+      <div class="phase-title-txt">FOUNDATION — INFRASTRUCTURE + DATA INGESTION + UI SHELL</div>
+      <div class="phase-weeks">WEEKS 1–4 · 3 PARALLEL TRACKS</div>
+    </div>
+
+    <!-- TRACK A: INFRA -->
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK A — INFRASTRUCTURE (starts immediately, blocks everything)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">INFRA-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 1–3</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Set up the complete cloud infrastructure for the IDX Terminal. Every other agent depends on this environment existing.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Create a GCP project named <code>idx-terminal-prod</code>. Enable APIs: Cloud Run, GKE Autopilot, Cloud Scheduler, Container Registry, Secret Manager.</li>
+                <li>Provision a GKE Autopilot cluster in asia-southeast2 (Jakarta). Configure workload identity for least-privilege access. Use the Autopilot free tier — do NOT provision node pools manually.</li>
+                <li>Create a Supabase project (free tier). Extract the direct postgres connection string and store in GCP Secret Manager as <code>SUPABASE_DB_URL</code>. Also store the Supabase anon key as <code>SUPABASE_ANON_KEY</code>.</li>
+                <li>Set up Upstash Redis (free tier, 10K commands/day). Store connection URL as <code>REDIS_URL</code> in Secret Manager.</li>
+                <li>Create a Cloud Run service named <code>idx-api</code> in asia-southeast2. Configure: min-instances=0, max-instances=3, 512MB RAM, 1 vCPU. Set timeout 60s. Connect to Secret Manager secrets as env vars.</li>
+                <li>Create a second Cloud Run service named <code>idx-workers</code> for background scrapers. Same region. Configure: min-instances=0, max-instances=2, 1GB RAM (Playwright needs headroom).</li>
+                <li>Create a Cloud Scheduler job named <code>scraper-trigger</code> that POSTs to <code>idx-workers/trigger</code> every 15 minutes between 09:00–16:00 WIB on trading days only (Mon–Fri).</li>
+                <li>Set up GitHub Actions CI/CD: on push to main, build Docker images for api + workers, push to GCR, deploy to Cloud Run. Use OIDC workload identity — no stored service account keys.</li>
+                <li>Create <code>Makefile</code> with targets: <code>deploy-api</code>, <code>deploy-workers</code>, <code>db-migrate</code>, <code>logs-api</code>, <code>logs-workers</code>.</li>
+              </ul>
+            </div>
+            <div class="agent-section">
+              <div class="agent-section-title">Output Deliverables</div>
+              <div class="io-grid">
+                <div class="io-box">
+                  <div class="io-label">PRODUCES</div>
+                  <div class="io-item out">Working GKE cluster + Cloud Run services</div>
+                  <div class="io-item out">All secrets in Secret Manager</div>
+                  <div class="io-item out">GitHub Actions CI/CD pipeline</div>
+                  <div class="io-item out">Makefile + infra README</div>
+                </div>
+                <div class="io-box">
+                  <div class="io-label">ACCEPTANCE CRITERIA</div>
+                  <div class="io-item out"><code>make deploy-api</code> succeeds end-to-end</div>
+                  <div class="io-item out">Cloud Run health endpoint returns 200</div>
+                  <div class="io-item out">Supabase connection verified from Cloud Run</div>
+                  <div class="io-item out">Redis ping succeeds from workers</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SCHEMA-DB-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 1–3</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Create the complete PostgreSQL schema, all migrations, indexes, and seed data. This is the data contract every other agent codes against.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Implement all 8 tables defined in the Schema section of this document: <code>stocks</code>, <code>price_ticks</code>, <code>broker_transactions</code>, <code>insider_filings</code>, <code>smart_money_scores</code>, <code>broker_clusters</code>, <code>entities</code>, <code>signals</code>. Use the exact column names and types specified.</li>
+                <li>Use Alembic for migrations. Create migration files: <code>001_initial_schema.py</code>, <code>002_indexes.py</code>, <code>003_generated_columns.py</code>. Each migration must be reversible.</li>
+                <li>Add composite indexes: <code>(stock_id, date DESC)</code> on price_ticks and broker_transactions. <code>(stock_id, scored_at DESC)</code> on smart_money_scores. <code>(stock_id, generated_at DESC)</code> on signals.</li>
+                <li>Add a <code>hash_dedup</code> column to insider_filings: SHA-256 of (ticker + filing_date + insider_name + shares + transaction_type). Add UNIQUE constraint. This prevents duplicate filings from re-scrapes.</li>
+                <li>Seed the <code>stocks</code> table with all IDX LQ45 index constituents (45 stocks). Provide a seed SQL file with tickers, names, and sectors. These are public data.</li>
+                <li>Create a <code>db_health</code> view that returns row counts for each table. Used by monitoring.</li>
+                <li>Write a Python <code>test_schema.py</code> that connects to Supabase, inserts a test row into each table, verifies foreign keys, and cleans up. Must pass before INFRA-01 signs off.</li>
+              </ul>
+            </div>
+            <div class="dep-note">Parallel with INFRA-01. Write migrations locally first; apply when INFRA-01 delivers the Supabase connection string.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TRACK B: SCRAPERS -->
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK B — DATA SCRAPERS (starts week 2, parallel with Track A)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SCRAPER-IDX-01</span>
+            <span class="agent-ctx">Context: <span>64K</span> tokens · Weeks 2–5</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the primary Playwright-based scraper for IDX stock data: daily OHLCV prices and volumes for all LQ45+ stocks.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Target URL: <code>https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-saham/</code>. Use Playwright in headless mode. The site uses dynamic JS rendering — wait for the data table to fully load before scraping.</li>
+                <li>For each stock: extract ticker, date, open, high, low, close, volume (shares), and value (IDR). Map all field names to the <code>price_ticks</code> schema exactly.</li>
+                <li>Handle pagination: the IDX summary table shows 10 rows per page. Navigate all pages or use the "All" items-per-page option if available.</li>
+                <li>Implement incremental scraping: store the last-scraped date per ticker in Redis (key: <code>last_scraped:{ticker}</code>). Only re-fetch tickers with stale data.</li>
+                <li>Implement deduplication: before inserting, check if (stock_id, date) already exists in price_ticks. Use INSERT ... ON CONFLICT DO NOTHING.</li>
+                <li>Write a retry decorator: on network failure or parse error, retry up to 3 times with 5s backoff. On persistent failure, write to a <code>scraper_errors</code> log table (create this table: id, ticker, error_message, attempted_at).</li>
+                <li>Wrap in a FastAPI endpoint: <code>POST /scrape/prices</code> that triggers the scrape job. This endpoint is called by the Cloud Scheduler job via SCRAPER-IDX-WORKERS-01.</li>
+                <li>Target scrape time: under 5 minutes for all 45 LQ45 stocks. If slower, parallelize with asyncio across tickers.</li>
+              </ul>
+            </div>
+            <div class="parallel-note">Runs parallel to SCRAPER-KSEI-01 and SCRAPER-BROKER-01. All three scrapers write to independent tables with no shared state.</div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SCRAPER-KSEI-01</span>
+            <span class="agent-ctx">Context: <span>64K</span> tokens · Weeks 2–5</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the KSEI insider filing scraper and parser. This is the source of truth for all insider transaction data — accuracy is paramount.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Target: KSEI eASY.KSEI portal and IDX disclosure website (<code>https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/</code>). Use BeautifulSoup4 for static pages; Playwright for JS-rendered disclosure lists.</li>
+                <li>Parse "Kepemilikan Saham" (share ownership) disclosures. Extract: company ticker, filing date, transaction date, insider name, role (Direktur/Komisaris), transaction type (pembelian/penjualan), number of shares, price per share, ownership percentage before/after.</li>
+                <li>Normalize all Indonesian role strings to English: <code>Direktur Utama</code> → <code>CEO</code>, <code>Komisaris Utama</code> → <code>Chairman</code>, etc. Maintain a mapping dict in <code>config/role_normalization.json</code>.</li>
+                <li>Build a deduplication hash: SHA-256 of (ticker + filing_date.isoformat() + insider_name.lower().strip() + str(shares) + transaction_type). Store as <code>hash_dedup</code>. Skip any record whose hash already exists.</li>
+                <li>Assign a <code>confidence</code> score per filing: 1.0 if all fields parsed cleanly, 0.8 if price was estimated from market price on transaction date, 0.6 if transaction date was inferred from filing date.</li>
+                <li>Write a <code>validate_filing(row)</code> function that rejects: rows with negative shares, prices > 2× market price on that date (likely a parsing error), future transaction dates.</li>
+                <li>Poll for new filings every 1 hour (not 15 min — filings are not time-critical). Scheduler cronjob: <code>0 * * * *</code>.</li>
+              </ul>
+            </div>
+            <ul class="accept-list" style="margin-top:10px">
+              <li class="crit">Filing price must match KSEI source within 1% tolerance — this is a CRITICAL acceptance criterion</li>
+              <li>Deduplication must prevent any filing appearing twice, even across multiple scrape runs</li>
+              <li>Confidence score must be stored and surfaced in the API response</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SCRAPER-BROKER-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 3–5</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the broker transaction scraper. This feeds the single most important signal: who is buying and selling, at the broker level, every day.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Target: IDX broker summary pages at <code>https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-broker/</code>. Requires Playwright due to JS rendering.</li>
+                <li>For each stock, for each trading date: scrape all broker codes with their buy volume, sell volume, buy value (IDR), sell value (IDR). Store in <code>broker_transactions</code>.</li>
+                <li>The <code>net_value</code> column is a PostgreSQL generated column (buy_value - sell_value) — do not compute it in Python.</li>
+                <li>Maintain a canonical broker code mapping in <code>config/broker_codes.json</code>: maps IDX broker codes (e.g. "BK", "YP", "ZP") to broker names. Pre-seed the 30 most active IDX brokers.</li>
+                <li>Prioritize the top 50 IDX stocks by market cap for broker data. Broker data is higher volume than price data — be conservative with requests to avoid IP rate limits. Add a 2-second delay between stock requests.</li>
+                <li>Store a "scrape_cursor" per stock in Redis. On each run, only fetch dates not yet stored. This prevents re-scraping historical data.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TRACK C: UI -->
+    <div class="track">
+      <div class="track-label">TRACK C — FRONTEND SHELL (fully parallel, zero dependency on Track A/B)</div>
+      <div class="track-agents">
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">UI-SHELL-01</span>
+            <span class="agent-ctx">Context: <span>16K</span> tokens · Weeks 1–3</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the Next.js application shell with Bloomberg-inspired dark terminal UI. This is the visual foundation every frontend module plugs into.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Initialize Next.js 14 with App Router, TypeScript, Tailwind CSS. Set up ESLint + Prettier with strict config.</li>
+                <li>Define global CSS variables in <code>globals.css</code>: --bg-primary (#080b10), --bg-secondary (#0d1117), --bg-panel (#131923), --border (#1e2d42), --text-primary (#d4dde8), --text-muted (#5a6e84), --accent-amber (#f0a500), --accent-green (#00c9a0), --accent-blue (#4d9fff), --accent-red (#ff5a6e).</li>
+                <li>Build the top navigation bar: left side shows IDXTERMINAL logo + current ticker ticker. Right side shows connection status indicator (green dot = data fresh, red = stale), last-updated timestamp, and settings icon. Make it sticky.</li>
+                <li>Build a 3-panel default layout grid: left sidebar (240px, collapsible), main content area (flex:1), right intelligence panel (320px, collapsible). Panels should be resizable via drag. Use CSS Grid + a minimal resize handler.</li>
+                <li>Define the Tailwind config with custom colors matching the CSS variables. Extend the font family with JetBrains Mono as the primary monospace font (load via next/font/google).</li>
+                <li>Create a global <code>useTerminalStore</code> Zustand store: holds activeTicker, activePage, watchlist (array), activeAlerts (array), lastUpdated (timestamp). Export typed selectors.</li>
+                <li>Build a scan-line CSS overlay effect: <code>body::before</code> with repeating-linear-gradient for the CRT terminal feel. Make it a CSS variable toggle so users can disable it.</li>
+              </ul>
+            </div>
+            <div class="parallel-note">Runs completely independently of all infra work. No API calls in the shell — all data is mock/empty initially. Frontend and backend integrate in Week 5.</div>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">CMD-PALETTE-01</span>
+            <span class="agent-ctx">Context: <span>16K</span> tokens · Weeks 2–4</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the command palette — the Bloomberg-style keyboard-driven navigation system. This is the primary UX differentiator.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Trigger: ⌘K or Ctrl+K opens the palette overlay. ESC closes it. It should be a full-screen modal overlay with the input at the top.</li>
+                <li>Implement a command parser that handles: (1) module commands — <code>INSIDER</code>, <code>FLOW</code>, <code>HEATMAP</code>, <code>BANDAR</code>, <code>TOPBUY</code>, <code>ALERT</code>, <code>SCORE</code>; (2) ticker lookups — any 2–6 character uppercase string; (3) compound commands — <code>INSIDER BBCA</code>, <code>FLOW TLKM 5D</code>, <code>BANDAR GOTO</code>.</li>
+                <li>Show autocomplete suggestions as the user types. Suggestions should include: matched command names with descriptions, matched ticker names (search stocks table via API), and recent commands (last 10, stored in localStorage).</li>
+                <li>On command execution, dispatch to a command router that navigates to the appropriate page or panel. Use Next.js router for page navigation. Emit a CustomEvent for panel changes.</li>
+                <li>Show a "COMMAND REFERENCE" section at the bottom of the palette when the input is empty. List all available commands grouped by category with keyboard shortcuts.</li>
+                <li>Command execution speed target: &lt; 150ms from keypress to navigation/action. This is a hard acceptance criterion.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">TABLE-ENGINE-01</span>
+            <span class="agent-ctx">Context: <span>12K</span> tokens · Weeks 3–4</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Set up TanStack Table v8 as the standard table primitive for all data tables across the terminal.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Install and configure TanStack Table v8. Create a reusable <code>&lt;TerminalTable /&gt;</code> component that accepts: columns (with header, accessorKey, cell renderer), data, optional onRowClick handler, optional defaultSort.</li>
+                <li>Apply Bloomberg-style table CSS: dark background, 1px bottom borders between rows (no side borders), monospace numbers right-aligned, alternating row hover highlight, sticky first column support.</li>
+                <li>Implement client-side sorting (click header to sort asc/desc/none). Implement column-level text filtering with a filter input row below the header. Implement pagination with 25/50/100 rows options.</li>
+                <li>Add a column pin feature: any column can be pinned to the left. Store pinned columns in localStorage per table ID.</li>
+                <li>Build number formatting utils: <code>formatIDR(n)</code> → "Rp 12,4 M" or "Rp 1,2 T"; <code>formatShares(n)</code> → "48,2 jt lot"; <code>formatPct(n)</code> → "+2.3%" with color class.</li>
+                <li>Export the component and all formatters from <code>src/components/table/index.ts</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 2 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="phase2">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PHASE 2 — WEEKS 5–9</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="phase-block">
+    <div class="phase-label">
+      <div class="phase-num" style="background:var(--acc2);color:var(--bg)">PHASE 2</div>
+      <div class="phase-title-txt">INTELLIGENCE CORE — SIGNAL ENGINES + API + FRONTEND MODULES</div>
+      <div class="phase-weeks">WEEKS 5–9 · 5 PARALLEL TRACKS</div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK A — BACKEND API (unblocks all frontend agents)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SCHEDULER-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 4–6</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the APScheduler-based job scheduling system that orchestrates all scraper agents and data pipeline jobs.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Use APScheduler 3.x with AsyncIOScheduler. Register these jobs: (1) <code>scrape_prices</code> — every 15 min, 09:00–16:00 WIB, Mon–Fri; (2) <code>scrape_broker_flows</code> — every 15 min, same window; (3) <code>scrape_insider_filings</code> — every 60 min, 08:00–18:00 WIB; (4) <code>compute_scores</code> — every 15 min, runs after prices and broker flows complete (use job chaining); (5) <code>generate_signals</code> — every 15 min, runs after compute_scores.</li>
+                <li>Add a job lock mechanism using Redis: before any scraper job runs, acquire a Redis lock (key: <code>job_lock:{job_name}</code>, TTL: 10min). If lock exists, skip the run. This prevents overlapping job executions.</li>
+                <li>Build a dead-letter queue: if any job fails 3 consecutive times, mark it as FAILED in a <code>job_status</code> table (create: job_name, status, last_run, last_error, run_count). Alert via a Slack webhook (optional env var — skip gracefully if not set).</li>
+                <li>Expose <code>GET /health/jobs</code> — returns current status of all jobs. Used by the monitoring dashboard.</li>
+                <li>Write a <code>test_scheduler.py</code> that runs each job once in test mode with mock data and confirms no exceptions are raised.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">API-GATEWAY-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 5–8</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the complete FastAPI REST API layer. This is the contract between backend data and frontend modules.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Full API Surface — Implement All Endpoints</div>
+              <div class="code-block"><span class="code-comment"># Stocks</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/stocks</span>                    <span class="code-comment"># All stocks, filterable by sector</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/stocks/{ticker}</span>           <span class="code-comment"># Single stock full profile</span>
+
+<span class="code-comment"># Prices</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/prices/{ticker}</span>           <span class="code-comment"># OHLCV for last N days (default 90)</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/prices/{ticker}/anomalies</span> <span class="code-comment"># Volume anomaly events for ticker</span>
+
+<span class="code-comment"># Broker Flows</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/broker/{ticker}</span>           <span class="code-comment"># Broker net flows for ticker, last N days</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/broker/{ticker}/top</span>       <span class="code-comment"># Top 10 brokers by net buy/sell value</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/broker/market/summary</span>     <span class="code-comment"># Market-wide broker flow leaderboard</span>
+
+<span class="code-comment"># Insider Filings</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/insider</span>                   <span class="code-comment"># All recent filings, filterable</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/insider/{ticker}</span>          <span class="code-comment"># Filings for specific stock</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/insider/top</span>               <span class="code-comment"># Top buys/sells by value, last 30 days</span>
+
+<span class="code-comment"># Smart Money Scores</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/scores</span>                    <span class="code-comment"># All stocks scored, sorted by score DESC</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/scores/{ticker}</span>           <span class="code-comment"># Score history for ticker</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/scores/top</span>                <span class="code-comment"># Top 20 stocks by conviction score</span>
+
+<span class="code-comment"># Signals</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/signals</span>                   <span class="code-comment"># Latest signals, filterable by type/severity</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/signals/{ticker}</span>          <span class="code-comment"># All signals for a ticker</span>
+
+<span class="code-comment"># Heatmap</span>
+<span class="code-key">GET</span>  <span class="code-str">/api/heatmap/sector</span>            <span class="code-comment"># Sector-level score heatmap data</span>
+
+<span class="code-comment"># Health</span>
+<span class="code-key">GET</span>  <span class="code-str">/health</span>                        <span class="code-comment"># Service liveness</span>
+<span class="code-key">GET</span>  <span class="code-str">/health/jobs</span>                   <span class="code-comment"># Scraper job status</span></div>
+              <ul class="spec-list" style="margin-top:10px">
+                <li>All responses use a standard envelope: <code>{"data": ..., "meta": {"total": N, "page": N, "updated_at": ISO8601}}</code></li>
+                <li>All list endpoints support: <code>?limit=25&offset=0&sort=score_total:desc&ticker=BBCA</code></li>
+                <li>Add Redis caching on all GET endpoints. TTL: price/broker = 10min, insider = 55min, scores = 10min, heatmap = 15min. Cache key format: <code>cache:{endpoint_path}:{sorted_params_hash}</code></li>
+                <li>Add CORS headers allowing all origins (public API). Add rate limiting: 100 req/min per IP using slowapi.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK B — SIGNAL ENGINES (all parallel, depend only on DB schema being deployed)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">BROKER-FLOW-01</span>
+            <span class="agent-ctx">Context: <span>64K</span> tokens · Weeks 5–8</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the broker net flow aggregation engine. This produces the most actionable signal in the terminal: which brokers are accumulating or distributing, and at what magnitude.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Algorithm Specification</div>
+              <ul class="spec-list">
+                <li><strong>3-Day Rolling Net Flow:</strong> For each (stock, broker), compute: <code>net_flow_3d = SUM(net_value) for last 3 trading days</code>. Store the result in a materialized view or computed table refreshed every 15 min.</li>
+                <li><strong>Z-Score Normalization:</strong> For each broker code, compute the mean and stddev of their net_flow_3d across all stocks over the last 60 trading days. Then: <code>z_score = (net_flow_3d - mean) / stddev</code>. A z-score &gt; 2.0 is a statistically significant accumulation event.</li>
+                <li><strong>Broker Cluster Detection:</strong> If 2+ brokers show z-score &gt; 1.5 in the same stock within the same 3-day window, flag as a <code>broker_cluster</code>. Write to the broker_clusters table.</li>
+                <li><strong>Market-Level View:</strong> Produce a leaderboard of the top 20 stocks by absolute broker net flow (|net_value_3d|) across all brokers. This powers the TOPBUY command.</li>
+                <li><strong>Stealth Score:</strong> Compute <code>stealth_ratio = |net_value_3d| / volume_idr_3d</code>. A low stealth_ratio (&lt;0.3) with high net flow indicates stealth accumulation — price has not moved proportionally to flow. This feeds into the conviction score.</li>
+              </ul>
+              <div class="code-block"><span class="code-comment"># Core SQL query for broker net flow score</span>
+<span class="code-key">WITH</span> recent_flows <span class="code-key">AS</span> (
+  <span class="code-key">SELECT</span> stock_id, broker_code,
+         <span class="code-key">SUM</span>(net_value) <span class="code-key">AS</span> net_flow_3d,
+         <span class="code-key">SUM</span>(buy_value + sell_value) <span class="code-key">AS</span> total_activity
+  <span class="code-key">FROM</span> broker_transactions
+  <span class="code-key">WHERE</span> date &gt;= <span class="code-key">CURRENT_DATE</span> - 3
+  <span class="code-key">GROUP BY</span> stock_id, broker_code
+),
+stats <span class="code-key">AS</span> (
+  <span class="code-key">SELECT</span> broker_code,
+         <span class="code-key">AVG</span>(net_flow_3d) <span class="code-key">AS</span> mean_flow,
+         <span class="code-key">STDDEV</span>(net_flow_3d) <span class="code-key">AS</span> std_flow
+  <span class="code-key">FROM</span> recent_flows
+  <span class="code-key">GROUP BY</span> broker_code
+)
+<span class="code-key">SELECT</span> r.*, (r.net_flow_3d - s.mean_flow) / <span class="code-key">NULLIF</span>(s.std_flow, 0) <span class="code-key">AS</span> z_score
+<span class="code-key">FROM</span> recent_flows r <span class="code-key">JOIN</span> stats s <span class="code-key">USING</span> (broker_code)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">VOL-ANOMALY-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 5–8</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the volume anomaly detection engine. Unusual volume is one of the earliest precursors to informed trading activity.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Algorithm Specification</div>
+              <ul class="spec-list">
+                <li><strong>Baseline:</strong> For each stock, compute the 20-day average daily volume (ADV20). Exclude circuit-breaker days (volume = 0 or &gt;5× previous day).</li>
+                <li><strong>Anomaly Threshold:</strong> Flag a day as anomalous if: <code>volume &gt; 2.5 × ADV20</code> (HIGH) or <code>volume &gt; 1.8 × ADV20</code> (ELEVATED). Store the multiplier as <code>volume_sigma</code> in the signals table.</li>
+                <li><strong>Price-Volume Divergence:</strong> Flag "stealth" days where <code>volume_sigma &gt; 2.5</code> but <code>|price_change_pct| &lt; 1.0%</code>. This is a particularly strong signal — high volume without price movement suggests controlled accumulation.</li>
+                <li><strong>Run Length:</strong> Count consecutive days above 1.5× ADV20. A run of 3+ days is a stronger signal than a single spike.</li>
+                <li>Write results to the <code>signals</code> table with signal_type = 'VOL_ANOMALY'. Include volume_sigma, run_length, and stealth_flag in source_ids (JSONB).</li>
+                <li>Expose via <code>GET /api/prices/{ticker}/anomalies</code> — returns all anomaly signals for the ticker, newest first.</li>
+              </ul>
+            </div>
+            <div class="parallel-note">Parallel with BROKER-FLOW-01 and FILING-PARSER-01. All three engines write independent output rows and do not depend on each other.</div>
+          </div>
+        </div>
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">SCORE-ENGINE-01</span>
+            <span class="agent-ctx">Context: <span>128K</span> tokens · Weeks 6–9</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the core Smart Money Conviction Scoring model. This is the intellectual heart of the terminal. Every score must be explainable, reproducible, and calibrated against real IDX market behavior.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Scoring Formula — Full Specification</div>
+              <div class="score-formula">
+<span class="var">score_total</span> = <span class="weight">w1</span>×broker_flow_score
+            + <span class="weight">w2</span>×insider_score
+            + <span class="weight">w3</span>×volume_anomaly_score
+            + <span class="weight">w4</span>×repeated_buyer_score
+            + <span class="weight">w5</span>×stealth_score
+            + <span class="weight">w6</span>×filing_recency_score
+            + <span class="weight">w7</span>×sector_momentum_score
+            + <span class="var">bandar_bonus</span>
+
+<span class="comment">Weights: w1=25, w2=20, w3=18, w4=15, w5=10, w6=7, w7=5</span>
+<span class="comment">bandar_bonus = +15 if bandar_flag=TRUE (can exceed 100 — cap at 100)</span>
+
+<span class="comment">── Component Logic ──</span>
+
+<span class="var">broker_flow_score</span>:
+  max_z = MAX(z_score across all brokers for this stock, last 3d)
+  net_buy_3d = SUM(net_value) all brokers, last 3d
+  IF max_z > 3.0 AND net_buy_3d > 0: score = 25
+  IF max_z > 2.0 AND net_buy_3d > 0: score = 20
+  IF max_z > 1.5 AND net_buy_3d > 0: score = 15
+  IF max_z > 1.0 AND net_buy_3d > 0: score = 10
+  IF net_buy_3d < 0:                  score = 0  <span class="comment"># Net sell = zero broker score</span>
+
+<span class="var">insider_score</span>:
+  buys_30d = COUNT(insider_filings WHERE type=BUY AND date>=now-30d)
+  sells_30d = COUNT(insider_filings WHERE type=SELL AND date>=now-30d)
+  role_weight = {CEO:2.0, CFO:1.8, DIRECTOR:1.5, COMMISSIONER:1.2, OTHER:1.0}
+  weighted_buys = SUM(role_weight[role] for each buy)
+  IF weighted_buys >= 4: score = 20
+  IF weighted_buys >= 2: score = 15
+  IF weighted_buys >= 1: score = 10
+  IF sells_30d > 0: score -= 5  <span class="comment"># Penalize recent sells</span>
+
+<span class="var">volume_anomaly_score</span>:
+  IF volume_sigma > 3.0 AND stealth_flag: score = 18  <span class="comment"># Best signal</span>
+  IF volume_sigma > 2.5:                  score = 15
+  IF volume_sigma > 2.0:                  score = 10
+  IF run_length >= 3:                     score += 3  <span class="comment"># Bonus for sustained anomaly</span>
+
+<span class="var">repeated_buyer_score</span>:
+  repeated = COUNT(DISTINCT broker_code WHERE net_buy on 3+ of last 5 trading days)
+  score = MIN(repeated × 5, 15)  <span class="comment"># Cap at 15</span>
+
+<span class="var">stealth_score</span>:
+  stealth_ratio = |net_value_3d| / volume_idr_3d
+  IF stealth_ratio < 0.2: score = 10  <span class="comment"># Very stealthy</span>
+  IF stealth_ratio < 0.4: score = 6
+  ELSE:                    score = 2
+
+<span class="result">signal_tier:
+  score >= 90: STRONG_BUY | 75-89: ACCUMULATE | 60-74: WATCH | 40-59: NEUTRAL | <40: AVOID</span>
+              </div>
+            </div>
+            <div class="agent-section" style="margin-top:12px">
+              <div class="agent-section-title">Implementation Requirements</div>
+              <ul class="spec-list">
+                <li>Implement as a Python class <code>ConvictionScorer</code> with a <code>score(stock_id: str, as_of: date) → ScoreResult</code> method. ScoreResult is a Pydantic model matching the smart_money_scores schema exactly.</li>
+                <li>Every component score must be independently accessible: <code>result.components.broker_flow</code>, <code>result.components.insider</code>, etc. The frontend uses this to show score breakdown.</li>
+                <li>Write a <code>test_scorer.py</code> with at least 10 unit tests covering: zero-data graceful handling, all-sell scenario, mixed buy/sell signals, bandar bonus trigger, score cap at 100.</li>
+                <li>The scorer is called by the <code>compute_scores</code> scheduler job. It must process all 50 active stocks in under 30 seconds. Optimize with batch SQL queries, not per-ticker queries in a loop.</li>
+              </ul>
+            </div>
+            <ul class="accept-list" style="margin-top:10px">
+              <li class="crit">HEAVY agent: output reviewed by ARCH-REVIEW-01 at end of Phase 2 before any dependent agent uses it</li>
+              <li class="crit">Score must not produce false-positive STRONG_BUY when all individual components are weak</li>
+              <li>Unit test suite must achieve 100% branch coverage on score computation logic</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK C — FRONTEND MODULES (parallel; mock data until API ready in Week 7)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">INSIDER-MODULE-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 6–9</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the Insider Terminal module — the primary page for tracking insider buy/sell activity across all IDX stocks.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Page Layout & Components</div>
+              <ul class="spec-list">
+                <li><strong>Top Panel — Insider Feed:</strong> A live-updating table of the 50 most recent insider filings, newest first. Columns: Ticker, Insider Name + Role, Type (BUY/SELL with color), Shares, Total Value (IDR), Filing Date, Conviction Badge. Row click navigates to ticker detail.</li>
+                <li><strong>Left Panel — Top Buyers:</strong> Ranked list of insiders by total buy value in the last 30 days. Shows name, role, ticker count, total IDR bought. Updates daily.</li>
+                <li><strong>Right Panel — Conviction Badges:</strong> For each filing, show a badge: score from SCORE-ENGINE-01, signal tier, and key signal flags (BANDAR, HIGH-VOL, REPEAT-BUY). Badges must be color-coded: red = AVOID, amber = WATCH, green = ACCUMULATE/STRONG_BUY.</li>
+                <li><strong>Filter Bar:</strong> Filter by date range (last 7d/30d/90d), transaction type (BUY/SELL/ALL), insider role (Director/Commissioner/ALL), minimum value (IDR). Filters must apply client-side on cached data.</li>
+                <li>The page is activated by the terminal command <code>INSIDER</code> or <code>INSIDER {TICKER}</code>. When a ticker is specified, filter the feed to that stock only.</li>
+                <li>Use the <code>&lt;TerminalTable /&gt;</code> component from TABLE-ENGINE-01 for all tabular data.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">HEATMAP-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 6–9</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the IDX sector heatmap — a visual density map showing which sectors have the highest smart money activity right now.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Implement a treemap-style heatmap using D3.js. Each block represents one stock. Block size = market cap (larger cap = larger block). Block color = smart money score: deep red (#ff5a6e) for score &gt;85, orange for 70–84, amber for 55–69, neutral gray for &lt;55.</li>
+                <li>Group blocks by sector. Each sector is a labeled parent group. Sector names: Banking, Consumer, Energy, Mining, Infrastructure, Property, Healthcare, Technology, Retail.</li>
+                <li>On hover: show a tooltip with ticker, score, signal tier, last broker flow, and insider activity count. Position tooltip to avoid overflow.</li>
+                <li>On click: dispatch the terminal command <code>FLOW {TICKER}</code> to navigate to broker flow detail for that stock.</li>
+                <li>The heatmap refreshes every 15 minutes by polling <code>/api/heatmap/sector</code>. Show a "last updated" timestamp in the corner.</li>
+                <li>Trigger: <code>HEATMAP</code> terminal command or F4 keyboard shortcut.</li>
+              </ul>
+            </div>
+            <div class="parallel-note">Runs parallel to INSIDER-MODULE-01 and CHART-ENGINE-01. All three frontend modules are independent page components.</div>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">CHART-ENGINE-01</span>
+            <span class="agent-ctx">Context: <span>16K</span> tokens · Weeks 5–7</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the lightweight charting component library used across all ticker detail pages.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Use <code>lightweight-charts</code> by TradingView (open source, MIT). Do NOT use heavyweight charting libraries — this terminal prioritizes table intelligence over charting.</li>
+                <li>Build 3 chart components: (1) <code>&lt;PriceChart /&gt;</code> — candlestick OHLCV with volume bars below; (2) <code>&lt;BrokerFlowChart /&gt;</code> — stacked bar chart showing top 5 brokers' net flow per day; (3) <code>&lt;ScoreHistoryChart /&gt;</code> — line chart of conviction score over time.</li>
+                <li>All charts use the terminal color palette (dark background, amber/green/red candles). Charts are always secondary to tables — max height 220px. Never allow a chart to dominate the page.</li>
+                <li>Charts are optional: wrap each in an error boundary. If the chart library fails to load, show a text-based OHLCV summary table as fallback.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">TICKER-PAGE-01</span>
+            <span class="agent-ctx">Context: <span>16K</span> tokens · Weeks 5–7</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the individual ticker detail page — the drill-down view reached when a user clicks a stock or types <code>INSIDER BBCA</code>.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Route: <code>/ticker/[symbol]</code>. The page title shows: <code>BBCA ▸ BANK CENTRAL ASIA ▸ Banking</code></li>
+                <li>Left column (60% width): Conviction Score badge (large, prominent), score component breakdown (horizontal bar per component), PriceChart, last 20 broker flows (BrokerFlowChart).</li>
+                <li>Right column (40% width): All insider filings for this ticker (scrollable table), latest signals (all signal types), AI summary (placeholder text "Loading AI analysis..." until AI-SUMMARY-01 is integrated).</li>
+                <li>Add prev/next navigation between tickers (cycle through watchlist). Add "Add to Watchlist" toggle button in the header. Add "Export CSV" button that downloads all data for this ticker.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 3 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="phase3">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PHASE 3 — WEEKS 10–13</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="phase-block">
+    <div class="phase-label">
+      <div class="phase-num" style="background:var(--acc)">PHASE 3</div>
+      <div class="phase-title-txt">SIGNAL LAYER — BANDAR DETECTION + AI + ALERTS + ENTITY MAPPING</div>
+      <div class="phase-weeks">WEEKS 10–13 · 5 PARALLEL TRACKS</div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK A — HEAVY INTELLIGENCE (most intellectually demanding work)</div>
+      <div class="track-agents">
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">BANDAR-PROXY-01</span>
+            <span class="agent-ctx">Context: <span>160K</span> tokens · Weeks 10–13</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the Bandar (market-maker/manipulator) proxy detection system. This is the terminal's most controversial and most valuable intelligence capability. It identifies coordinated accumulation patterns that precede significant price moves.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detection Rules — Implement All</div>
+              <ul class="spec-list">
+                <li><strong>Rule 1 — Broker Concentration:</strong> IF a single broker or a cluster of 2-3 brokers accounts for &gt;40% of total buy volume over 5 trading days for a stock, AND their combined net_flow z-score &gt; 2.5, THEN flag as potential bandar accumulation. Confidence: 0.7.</li>
+                <li><strong>Rule 2 — Cross-Trade Pattern:</strong> IF broker_A buy_volume &gt; 80% of broker_B sell_volume on the same day for the same stock (suggesting a coordinated cross-trade), AND this happens on 3+ of the last 10 days, THEN flag as cross-trade cluster. Confidence: 0.8.</li>
+                <li><strong>Rule 3 — Stealth Accumulation Window:</strong> IF net_broker_flow_positive for 10+ consecutive trading days AND |price_change_total| &lt; 5% during that window, THEN flag as stealth accumulation. This is the most reliable pattern. Confidence: 0.9.</li>
+                <li><strong>Rule 4 — Insider-Broker Correlation:</strong> IF insider_buy_filing occurs within 5 trading days BEFORE a broker_cluster detection on the same stock, flag as insider-broker alignment. Confidence: 0.85. Write to signals table as signal_type = 'BANDAR_ACCUM'.</li>
+                <li><strong>Rule 5 — Nominee Pattern:</strong> If insider_name fuzzy-matches a known nominee pattern (single initial + family name, or corporate entity with common bandar structure), increase bandar confidence by 0.1.</li>
+                <li>Each detection must produce a <code>BandarSignal</code> record: stock_id, detected_at, rules_triggered (array), confidence, supporting_broker_codes, narrative (150-word plain Indonesian text explaining what was detected).</li>
+                <li>Add a false-positive suppression rule: if a stock has announced a rights issue, ESOP, or buyback in the same window, suppress the bandar flag. Cross-reference against <code>insider_filings.transaction_type = 'GRANT'</code>.</li>
+              </ul>
+            </div>
+            <ul class="accept-list" style="margin-top:10px">
+              <li class="crit">HEAVY agent. Output reviewed by BANDAR-QA-01 in Phase 4 before public launch</li>
+              <li class="crit">False positive rate must not exceed 10% on held-out test cases</li>
+              <li>Every bandar signal must have a human-readable narrative — no signal without explanation</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">AI-SUMMARY-01</span>
+            <span class="agent-ctx">Context: <span>64K</span> tokens · Weeks 10–12</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Integrate the NVIDIA build.nvidia.com API to generate token-efficient, accurate AI summaries for insider filings, bandar signals, and anomaly events.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Use only <code>https://build.nvidia.com</code> API endpoints. Model: <code>nvidia/llama-3.1-nemotron-70b-instruct</code> or the available equivalent. Do NOT use OpenAI, Anthropic, or any other provider.</li>
+                <li>Build 3 summary types: (1) <code>filing_summary</code> — given one insider_filing record, produce a 2-sentence explanation of what the insider did and why it might be significant; (2) <code>bandar_summary</code> — given a BandarSignal record, produce a 3-sentence plain-language explanation of the detected pattern; (3) <code>anomaly_summary</code> — given a VOL_ANOMALY signal, explain what the volume pattern looks like and what it might indicate.</li>
+                <li><strong>Token Budget:</strong> Input prompt must be under 400 tokens per summary. Output must be under 150 tokens. This is not a luxury feature — it is a token-efficiency constraint to stay within the NVIDIA free tier.</li>
+                <li>Summaries are generated on-demand (when a user views a filing or signal) and cached in Redis (key: <code>ai:{summary_type}:{record_id}</code>, TTL: 24 hours). Never batch-generate summaries — only generate when requested.</li>
+                <li>Write summaries in English. Include a disclaimer at the bottom of each summary page: "AI summaries are for informational purposes only. Verify all data against official IDX disclosures."</li>
+                <li>Build a graceful fallback: if the NVIDIA API is unavailable or quota is exceeded, display the raw filing data in a structured format without a summary. Never show an error to the user — show the data instead.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">ENTITY-MAP-01</span>
+            <span class="agent-ctx">Context: <span>100K</span> tokens · Weeks 11–13</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the entity resolution and mapping system for Indonesian corporate insiders, nominees, and politically-exposed persons.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Build a <code>EntityResolver</code> that takes an insider_name string and attempts to match it to a canonical entity in the <code>entities</code> table using: (1) exact match; (2) fuzzy match with Levenshtein distance ≤ 2; (3) acronym match (e.g. "PT BCA Finance" matches "PT Bank Central Asia Finance"); (4) initial expansion ("B. Hartono" matches "Bambang Hartono").</li>
+                <li>Seed the entities table with the top 200 Indonesian corporate figures from public IDX data: founding families of major conglomerates (Salim, Hartono, Widjaja, Tahir, etc.), current directors of LQ45 companies. All data is sourced from public IDX disclosures only.</li>
+                <li>Build a family/corporate linkage graph: store related_entities as a UUID array in the entities table. If "Robert Budi Hartono" buys BBRI and "Michael Bambang Hartono" buys TLKM in the same week, surface this as a "related entity activity" signal.</li>
+                <li>PEP (Politically Exposed Person) flagging: cross-reference insider names against public cabinet member lists, SOE (BUMN) board lists, and DPR member lists. These are all public data. Store pep_flag = TRUE on matched entities. Display a gold "PEP" badge next to their name in the insider terminal.</li>
+                <li>The entity mapper runs as a post-processing step after SCRAPER-KSEI-01 ingests each new filing. It attempts to resolve the insider_name and updates the entity_id field on the filing record.</li>
+              </ul>
+            </div>
+            <div class="dep-note">Depends on SCRAPER-KSEI-01 being live and producing data. Can develop and test against the seed corpus independently before integration.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK B — SIGNAL + ALERT LAYER (parallel with Track A)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">SIGNAL-FEED-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 10–12</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the real-time intelligence feed — the terminal's right panel that continuously surfaces the highest-signal events happening right now across all IDX stocks.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>The feed aggregates from the <code>signals</code> table and displays items ranked by: (1) severity (HIGH first); (2) score_at_signal (higher score = higher rank); (3) generated_at (newer first). Apply a composite ranking formula: <code>rank_score = (severity_weight × 3) + (score_at_signal / 10) + recency_boost</code> where recency_boost = 5 for last 15min, 3 for last 1hr, 1 for last 4hr.</li>
+                <li>Each feed item shows: ticker badge, signal type icon, title, timestamp, and a mini conviction score badge. Total height per item: 52px max.</li>
+                <li>Deduplication: if the same signal_type fires for the same stock within 60 minutes, do not show it twice — update the existing feed item instead.</li>
+                <li>The feed auto-refreshes every 2 minutes via polling (NOT websocket). Use SWR with a 2-minute revalidation interval.</li>
+                <li>Build a filter toggle bar above the feed: ALL | INSIDER | BANDAR | VOLUME | BROKER. Active filter persists in localStorage.</li>
+                <li>Clicking any feed item dispatches the drill-down command: <code>FLOW {TICKER}</code> or <code>INSIDER {TICKER}</code> depending on signal type.</li>
+              </ul>
+            </div>
+            <div class="parallel-note">Runs parallel to BANDAR-PROXY-01. The feed consumes signals that BANDAR-PROXY-01 writes — the feed does not need bandar signals to launch; it will display other signal types first.</div>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">ALERT-SYS-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 10–12</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the alert rule engine and watchlist notification system.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Detailed Task</div>
+              <ul class="spec-list">
+                <li>Build an <code>AlertRule</code> schema stored in localStorage: {id, ticker, rule_type, threshold, created_at, last_triggered}. Rule types: SCORE_ABOVE(n), INSIDER_BUY, BANDAR_FLAG, VOLUME_ANOMALY, BROKER_FLOW_POSITIVE.</li>
+                <li>The alert checker runs on every data refresh (every 15 min). For each alert rule, query the latest data and check if the condition is met. If met: create a notification in localStorage (key: <code>notifications</code>).</li>
+                <li>Show an alert counter badge in the top nav bar (red dot with count). Clicking it opens the notification drawer showing all triggered alerts with timestamps and values.</li>
+                <li>Terminal command: <code>ALERT BMRI SCORE_ABOVE 80</code> creates a score alert for BMRI. Parse command arguments and create the rule automatically.</li>
+                <li>No backend required — all alerts are local-browser only. Data is fetched from the public API and evaluated client-side.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track">
+      <div class="track-label">TRACK C — UTILITY MODULES (fast, parallel, low risk)</div>
+      <div class="track-agents">
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">WATCHLIST-01</span>
+            <span class="agent-ctx">Context: <span>12K</span> tokens · Weeks 11–12</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the local watchlist with persistence and export.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Store watchlist as JSON array in localStorage key <code>watchlist_v1</code>. Each item: {ticker, added_at, note, alert_count}.</li>
+              <li>Add/remove buttons appear on every ticker badge and ticker detail page.</li>
+              <li>Watchlist panel in left sidebar: shows all watchlisted stocks with their current conviction score, signal tier badge, and alert count.</li>
+              <li>Terminal command: <code>WATCHLIST</code> opens the watchlist panel. <code>WATCHLIST ADD BBCA</code> adds a stock.</li>
+              <li>Export button: downloads watchlist as CSV with all current data fields.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">EXPORT-01</span>
+            <span class="agent-ctx">Context: <span>8K</span> tokens · Weeks 12–13</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the universal CSV export utility.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Implement <code>exportToCSV(data: Record[], filename: string)</code> utility. Use Papa.parse in reverse (data → CSV string).</li>
+              <li>IDR fields formatted as plain integers (no formatting in CSV). Dates in ISO8601. Percentages as decimals (0.023 not "2.3%").</li>
+              <li>Export buttons on: Insider Terminal (exports all visible filings), Ticker Page (exports all data for that ticker), Watchlist (exports watchlist), Top Scores (exports score leaderboard).</li>
+              <li>Filename format: <code>idx-insider-{YYYYMMDD}.csv</code>, <code>idx-bbca-{YYYYMMDD}.csv</code>, etc.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">MOMENTUM-01</span>
+            <span class="agent-ctx">Context: <span>48K</span> tokens · Weeks 11–13</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Build the momentum convergence detector — a multi-factor signal that fires when price momentum, volume, and broker flow all align in the same direction.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Compute for each stock: (1) <code>price_momentum_5d</code> = (close_today / close_5dago) - 1; (2) <code>volume_trend</code> = 5d ADV vs 20d ADV ratio; (3) <code>broker_flow_trend</code> = 5d net_broker_flow positive or negative.</li>
+              <li>Convergence signal fires when all three are aligned: price_momentum &gt; 0.02 AND volume_trend &gt; 1.3 AND broker_flow_trend = positive. Write to signals table as MOMENTUM_CONVERGENCE.</li>
+              <li>Divergence signal fires when price_momentum &gt; 0.03 (price rising) BUT broker_flow_trend = negative (brokers distributing). This is a warning signal. Write as MOMENTUM_DIVERGENCE with severity HIGH.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 4 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="phase4">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PHASE 4 — WEEKS 14–16</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="phase-block">
+    <div class="phase-label">
+      <div class="phase-num" style="background:var(--crit)">PHASE 4</div>
+      <div class="phase-title-txt">PRODUCTION HARDENING — QA GATES + PERFORMANCE + LAUNCH</div>
+      <div class="phase-weeks">WEEKS 14–16 · 4 PARALLEL TRACKS</div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK A — HEAVY QA GATES (must complete before LAUNCH-01)</div>
+      <div class="track-agents">
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">PARSER-QA-01</span>
+            <span class="agent-ctx">Context: <span>200K</span> tokens · Weeks 13–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Comprehensive QA validation of all 4 data parsers. This agent's sole job is to break things and prove the system's data integrity guarantees before public launch.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Validation Corpus & Test Cases</div>
+              <ul class="spec-list">
+                <li>Load the last 90 days of raw scrape artifacts (HTML pages) stored by each scraper. Parse them through the current parser implementations. Compare output to manually-verified ground truth for 50 randomly-selected records per scraper.</li>
+                <li><strong>SCRAPER-IDX-01 tests:</strong> Verify that all OHLCV values match the IDX official daily summary PDF for 10 randomly selected dates. Tolerance: 0.01% for prices, 0% for volume (exact integer match required).</li>
+                <li><strong>SCRAPER-KSEI-01 tests:</strong> Verify that 20 insider filings match the original KSEI disclosure documents exactly. Verify deduplication: re-run the scraper on the same date range and confirm zero new records are inserted.</li>
+                <li><strong>SCRAPER-BROKER-01 tests:</strong> Verify that broker net flows for BBCA sum to zero market-wide (every buy has a corresponding sell). Total buy volume across all brokers for a stock on a given day must equal total sell volume.</li>
+                <li><strong>Schema change resilience:</strong> Modify the IDX HTML structure manually (e.g. add a new column, change a table class) and verify the scraper either adapts or fails with a clear error log — not silently with wrong data.</li>
+                <li>Produce a QA Report document: parser_name, total_records_tested, exact_match_count, tolerance_pass_count, fail_count, failure_examples. Required pass rate: ≥99% for prices, ≥98% for broker data, ≥99.5% for insider filings.</li>
+              </ul>
+            </div>
+            <ul class="accept-list" style="margin-top:10px">
+              <li class="crit">LAUNCH-01 is BLOCKED until this agent signs off with a passing QA Report</li>
+              <li class="crit">Any price discrepancy &gt; 0.1% against official IDX data must be treated as a CRITICAL bug, not a warning</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">SCORE-QA-01</span>
+            <span class="agent-ctx">Context: <span>128K</span> tokens · Weeks 13–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Validate the conviction scoring model against known historical IDX events. Prove the model has predictive value before it influences user decisions.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Backtesting Specification</div>
+              <ul class="spec-list">
+                <li>Identify 10 historical IDX stocks where unusual activity preceded significant price moves (use public post-mortem analysis from IDX enforcement actions and financial journalism). These serve as positive test cases.</li>
+                <li>For each case, retroactively run the scorer against the historical data as if it were running live. Verify: did the score exceed 75 (ACCUMULATE) at least 5 trading days before the price move? If not, identify which component failed and propose a weight adjustment.</li>
+                <li>Identify 10 "boring" stocks — no major moves, no insider activity — and verify the scorer rates them below 50 (NEUTRAL/AVOID) consistently. False positive audit.</li>
+                <li>Run a sensitivity analysis: vary each component weight by ±20% and measure the impact on the top-20 scored stocks. If the leaderboard changes dramatically, the model is unstable and weights need recalibration.</li>
+                <li>Produce: calibration report, recommended weight adjustments (if any), top-5 false positive patterns to watch.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-card heavy">
+          <div class="agent-head">
+            <span class="agent-type-badge">HEAVY</span>
+            <span class="agent-id">BANDAR-QA-01</span>
+            <span class="agent-ctx">Context: <span>128K</span> tokens · Weeks 13–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Validate the bandar detection rules. Test for false positives, confirm legitimate cases, and tune confidence thresholds before the terminal goes public.</div>
+            <div class="agent-section">
+              <div class="agent-section-title">Validation Tests</div>
+              <ul class="spec-list">
+                <li>Test each of the 5 detection rules independently with synthetic data covering: rule triggered correctly (true positive), rule not triggered when it should not be (true negative), rule incorrectly triggered by a legitimate corporate event (false positive).</li>
+                <li>Corporate events that should NOT trigger bandar flags: announced buybacks, rights issues with disclosed brokers, ESOP grants, index rebalancing events (passive flows are large but not bandar). Build suppression rules for each.</li>
+                <li>Verify that the false_positive_rate across a held-out 60-day dataset is &lt;10%. If above threshold, recommend which rule has the worst precision and propose tightened parameters.</li>
+                <li>Review all narratives generated by BANDAR-PROXY-01 for factual accuracy and clarity. Any narrative that implies regulatory wrongdoing (e.g. "appears to be market manipulation") must be softened to "shows unusual accumulation pattern consistent with coordinated activity." Legal review of language is the PM's responsibility, not this agent's.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track" style="margin-bottom:16px">
+      <div class="track-label">TRACK B — PERFORMANCE + INFRA (parallel with QA track)</div>
+      <div class="track-agents">
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">PERF-AUDIT-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 14–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Full performance audit and optimization pass across the entire stack.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li><strong>Frontend:</strong> Run Lighthouse on the main terminal page, insider page, and heatmap. Target: LCP &lt; 2.0s, CLS &lt; 0.1, TBT &lt; 200ms. Fix any issues found. Add Next.js image optimization, code splitting per route, and font preloading.</li>
+              <li><strong>Backend API:</strong> Run <code>EXPLAIN ANALYZE</code> on the 10 most-called queries. Add missing indexes. Target: all API responses &lt; 300ms (cached) and &lt; 800ms (uncached p95).</li>
+              <li><strong>Scraper memory:</strong> Profile Playwright scraper memory usage. Ensure the browser context is properly closed after each scrape. Target: peak memory usage &lt; 512MB per worker pod.</li>
+              <li><strong>Request count:</strong> Calculate total monthly request count estimate. Ensure it stays under 2M (Cloud Run free tier). Tune caching TTLs if needed. Document the math.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card pro">
+          <div class="agent-head">
+            <span class="agent-type-badge">PRO</span>
+            <span class="agent-id">CACHE-LAYER-01</span>
+            <span class="agent-ctx">Context: <span>32K</span> tokens · Weeks 14–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Implement and validate the full Redis caching strategy across all API endpoints.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Review every endpoint in API-GATEWAY-01. Confirm each has a cache decorator with the correct TTL. Prices/broker = 10min. Insider filings = 55min. Scores = 10min. Heatmap = 15min. Signals = 8min.</li>
+              <li>Implement a cache invalidation webhook: <code>POST /cache/invalidate/{ticker}</code> that flushes all Redis keys for that ticker. Called by the scheduler after each scrape run completes.</li>
+              <li>Add cache hit rate logging: log cache_hit=true/false per request to Cloud Logging. Target cache hit rate: &gt;80% during market hours. Report actual rate after 48 hours of live traffic.</li>
+              <li>Implement a circuit breaker: if Redis is unavailable, fall back to direct database queries silently. Never return a 503 to the user because Redis is down.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track">
+      <div class="track-label">TRACK C — FINAL UX + LAUNCH (runs in parallel, completes at Week 16)</div>
+      <div class="track-agents">
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">SHORTCUT-01</span>
+            <span class="agent-ctx">Context: <span>8K</span> tokens · Weeks 14–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Implement the full keyboard shortcut system across the terminal.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Global shortcuts: ⌘K = command palette, ⌘/ = focus search, ESC = close/back, ⌘B = toggle broker flow panel, ⌘I = toggle insider feed, ⌘H = open heatmap, ⌘A = open alerts, ⌘W = add current ticker to watchlist, ⌘E = export current view as CSV.</li>
+              <li>Function keys: F1 = Insider Terminal, F2 = Smart Money / Scores, F3 = Market Intel, F4 = Heatmap, F5 = Alerts / Watchlist.</li>
+              <li>Build a keyboard shortcut reference overlay (press ?) that shows all shortcuts in a Bloomberg-style reference card. Display as a centered modal.</li>
+              <li>Use a global <code>useHotkeys</code> hook from the <code>react-hotkeys-hook</code> library. Register all shortcuts in a single <code>shortcuts.config.ts</code> file.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">LAYOUT-SAVE-01</span>
+            <span class="agent-ctx">Context: <span>8K</span> tokens · Weeks 14–15</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Implement saved local layouts — allowing users to persist their preferred panel arrangement.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Serialize the current panel state (which panels are open, which pages are active, the active ticker) to localStorage key <code>layout_saved_v1</code>.</li>
+              <li>On app load, restore the last saved state. If no saved state, load the default 3-panel layout.</li>
+              <li>Add a "Save Layout" button in the top nav. Add a "Reset Layout" button. Terminal command: <code>LAYOUT SAVE</code> and <code>LAYOUT RESET</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">MONITOR-01</span>
+            <span class="agent-ctx">Context: <span>12K</span> tokens · Weeks 15–16</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Set up production monitoring, alerting, and observability.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Cloud Monitoring: create dashboards for Cloud Run request count (target &lt;2M/mo), p95 latency, error rate. Set alert policy: page (email) if error rate &gt;1% for 5min.</li>
+              <li>Scraper health dashboard: use the <code>GET /health/jobs</code> endpoint. Create a Cloud Monitoring uptime check that calls this endpoint every 15min and alerts if any job is in FAILED state.</li>
+              <li>Supabase: monitor row counts via the <code>db_health</code> view. Alert if price_ticks table has not grown in 24 hours during market hours (scraper failure indicator).</li>
+              <li>Upstash Redis: monitor daily command count. Alert at 80% of free tier limit (8000/day).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">LAUNCH-01</span>
+            <span class="agent-ctx">Context: <span>8K</span> tokens · Week 16</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Execute the production launch runbook. This agent is a runbook follower, not a decision-maker. It fires ONLY after PARSER-QA-01, SCORE-QA-01, and BANDAR-QA-01 have all signed off.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li>Run <code>make db-migrate</code> against production Supabase. Verify all 8 tables exist and indexes are applied.</li>
+              <li>Run <code>make deploy-api</code> — deploy FastAPI to Cloud Run production.</li>
+              <li>Run <code>make deploy-workers</code> — deploy scraper workers to Cloud Run.</li>
+              <li>Deploy Next.js frontend to Vercel: <code>vercel --prod</code>. Verify custom domain is configured.</li>
+              <li>Trigger the first manual scrape run: <code>POST /scrape/prices</code>, <code>POST /scrape/broker_flows</code>, <code>POST /scrape/insider_filings</code>. Verify all return 200 and data appears in Supabase.</li>
+              <li>Smoke test the live site: open the terminal, run commands HEATMAP, INSIDER BBCA, FLOW TLKM, TOPBUY. Verify each returns live data. Verify CSV export works.</li>
+              <li>Enable Cloud Scheduler jobs. Monitor for the first automated run at the next 15-minute mark.</li>
+            </ul>
+            <div class="dep-note">BLOCKED BY: PARSER-QA-01 pass · SCORE-QA-01 pass · BANDAR-QA-01 pass · PERF-AUDIT-01 sign-off · MONITOR-01 dashboards live</div>
+          </div>
+        </div>
+
+        <div class="agent-card fast">
+          <div class="agent-head">
+            <span class="agent-type-badge">FAST</span>
+            <span class="agent-id">DOCS-01</span>
+            <span class="agent-ctx">Context: <span>16K</span> tokens · Weeks 15–16</span>
+          </div>
+          <div class="agent-body">
+            <div class="agent-mission">Write all user-facing and developer documentation.</div>
+            <ul class="spec-list" style="margin-top:8px">
+              <li><strong>README.md:</strong> Project overview, local development setup, environment variables reference, deployment instructions.</li>
+              <li><strong>Terminal Command Reference:</strong> One page listing every command with syntax, example, and output description. Format as a clean HTML page accessible at <code>/commands</code>.</li>
+              <li><strong>Methodology Note:</strong> A 500-word plain-language explanation of how the smart money scoring works, what the bandar detection looks at, and what the data limitations are. Published at <code>/methodology</code>. This manages user expectations and is legally important.</li>
+              <li><strong>API docs:</strong> Auto-generate from FastAPI's built-in <code>/docs</code> endpoint (Swagger UI). Ensure all endpoints have docstrings and response model schemas.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- SCORING MODEL DETAIL -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="scoring">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">CONVICTION SCORING — COMPLETE MODEL SPEC</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">Smart Money Scoring System — For SCORE-ENGINE-01 Reference</div>
+    <div class="section-sub">All downstream agents (BANDAR-PROXY-01, SIGNAL-FEED-01, TICKER-PAGE-01) consume scores from this model. Treat as the source of truth.</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
+    <div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-bottom:8px">COMPONENT WEIGHTS</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden">
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--muted);letter-spacing:1px">
+          <span>COMPONENT</span><span style="text-align:right">WEIGHT</span><span style="text-align:right">MAX SCORE</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Broker Net Flow (3-day rolling z-score)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">25%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">25 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Insider Buy Activity (role-weighted)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">20%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">20 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Volume Anomaly (σ from 20d ADV)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">18%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">18 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Repeated Buyer Count (5-day window)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">15%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">15 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Price-Volume Stealth Ratio</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">10%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">10 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Filing Recency Score (days since last)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">7%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">7 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:10px">Sector Momentum (relative to sector avg)</span>
+          <span style="text-align:right;color:var(--acc);font-size:11px;font-weight:700">5%</span>
+          <span style="text-align:right;font-size:10px;color:var(--acc2)">5 pts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px 80px;padding:7px 10px;background:var(--bg4)">
+          <span style="font-size:10px;color:var(--acc)">Bandar Proxy Bonus (if flag=TRUE)</span>
+          <span style="text-align:right;color:var(--crit);font-size:11px;font-weight:700">+15</span>
+          <span style="text-align:right;font-size:10px;color:var(--crit)">+15 bonus</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1.5px;margin-bottom:8px">SIGNAL TIERS & DISPLAY</div>
+      <div style="background:var(--bg2);border:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:6px 10px;border-bottom:1px solid var(--border);font-size:9px;color:var(--muted)">
+          <span>SCORE</span><span>TIER</span><span>DISPLAY BEHAVIOR</span>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:8px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--acc2)">90–100</span>
+          <span><span class="tag tag-green" style="font-size:8px">STRONG BUY</span></span>
+          <span style="font-size:10px;color:var(--text)">Pulsing green badge. Pin to top of all leaderboards. Feed alert priority: CRITICAL.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:8px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--acc2)">75–89</span>
+          <span><span class="tag tag-green" style="font-size:8px">ACCUMULATE</span></span>
+          <span style="font-size:10px;color:var(--text)">Solid green badge. Elevated position in feed. Send watchlist alert if user has that stock.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:8px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--acc)">60–74</span>
+          <span><span class="tag tag-amber" style="font-size:8px">WATCH</span></span>
+          <span style="font-size:10px;color:var(--text)">Amber badge. Standard feed position. No alert unless user has a SCORE_ABOVE rule set.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:8px 10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--muted)">40–59</span>
+          <span><span class="tag tag-muted" style="font-size:8px">NEUTRAL</span></span>
+          <span style="font-size:10px;color:var(--text)">Gray badge. Not shown in feed by default. Hidden unless user enables "show all".</span>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 100px 1fr;padding:8px 10px">
+          <span style="font-size:11px;color:var(--crit)">0–39</span>
+          <span><span class="tag tag-red" style="font-size:8px">AVOID</span></span>
+          <span style="font-size:10px;color:var(--text)">Red badge. Never shown in the default feed. Only visible on direct ticker lookup.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- PM RULES -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="rules">
+  <div class="phase-divider">
+    <div class="phase-divider-line"></div>
+    <div class="phase-divider-label">PM STANDING ORDERS</div>
+    <div class="phase-divider-line right"></div>
+  </div>
+  <div class="section-header">
+    <div class="section-title">Non-Negotiable Rules for All Agents</div>
+  </div>
+  <div class="final-grid">
+    <div class="final-card">
+      <div class="final-card-title">Data Integrity</div>
+      <div class="final-rule">Never display unverified data. If confidence &lt; 0.7, show a ⚠ indicator.</div>
+      <div class="final-rule">Every number shown to users must trace back to a specific Supabase row.</div>
+      <div class="final-rule">Scrapers fail loudly into logs. They never silently insert wrong data.</div>
+      <div class="final-rule">Deduplication is mandatory on every table that accepts scraped input.</div>
+      <div class="final-rule">The <code>hash_dedup</code> pattern is the standard. Every scraper must implement it.</div>
+    </div>
+    <div class="final-card">
+      <div class="final-card-title">UX Philosophy</div>
+      <div class="final-rule">Tables are primary. Charts are secondary. Never let a chart push a table off-screen.</div>
+      <div class="final-rule">Every page must be reachable via a terminal command. No page exists without a command.</div>
+      <div class="final-rule">Dense information is not clutter. Whitespace is not free — it costs signal density.</div>
+      <div class="final-rule">Speed is a feature. Command palette response &lt;150ms. API response &lt;800ms p95.</div>
+      <div class="final-rule">No login. No registration. No paywalls. Ever. This is a public intelligence tool.</div>
+    </div>
+    <div class="final-card">
+      <div class="final-card-title">Cost Discipline</div>
+      <div class="final-rule">Every agent must know their monthly request budget. Track it. Report it.</div>
+      <div class="final-rule">No websockets. Polling with caching is sufficient and dramatically cheaper.</div>
+      <div class="final-rule">NVIDIA AI calls are on-demand only — never batch-generate summaries.</div>
+      <div class="final-rule">Cloud SQL is explicitly forbidden. Supabase free tier is mandatory.</div>
+      <div class="final-rule">If a feature requires a paid API, reject it. Find a free alternative or descope.</div>
+    </div>
+    <div class="final-card">
+      <div class="final-card-title">Agent Coordination</div>
+      <div class="final-rule">HEAVY agents write specs; PRO agents implement them. Never the reverse.</div>
+      <div class="final-rule">Every HEAVY output gets a paired QA agent before it ships to production.</div>
+      <div class="final-rule">FAST agents do not touch scoring logic, parser logic, or detection rules.</div>
+      <div class="final-rule">Blocking dependencies are 7. Resolve them in order. Nothing else blocks launch.</div>
+      <div class="final-rule">ARCH-REVIEW-01 runs at end of Phase 2 and end of Phase 4. Not optional.</div>
+    </div>
+    <div class="final-card">
+      <div class="final-card-title">Legal & Compliance</div>
+      <div class="final-rule">All data sourced from public IDX and KSEI regulatory disclosures only.</div>
+      <div class="final-rule">No personal data stored. No user tracking. No cookies except essential.</div>
+      <div class="final-rule">Bandar signal narratives must not imply illegal activity — "unusual pattern" not "manipulation".</div>
+      <div class="final-rule">Methodology page is mandatory at /methodology before public launch.</div>
+      <div class="final-rule">Disclaimer: "For informational purposes only. Not investment advice."</div>
+    </div>
+    <div class="final-card">
+      <div class="final-card-title">Definition of Done</div>
+      <div class="final-rule">An agent task is DONE when: code is deployed, tests pass, and the feature works end-to-end on live data.</div>
+      <div class="final-rule">A phase is DONE when all agents in that phase have shipped AND the next phase's blocking dependencies are resolved.</div>
+      <div class="final-rule">The product is DONE when LAUNCH-01 completes the smoke test checklist without a single failure.</div>
+      <div class="final-rule">DONE does not mean perfect. Ship at 90% quality. Iterate in post-launch waves.</div>
+    </div>
+  </div>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--acc);padding:20px;margin-top:16px">
+    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px">CRITICAL PATH — 7 BLOCKING DEPENDENCIES IN ORDER</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">1</span>
+        <span style="color:var(--text)">INFRA-01 + SCHEMA-DB-01</span>
+        <span style="color:var(--muted)">→ blocks all scrapers and API agents</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 3</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">2</span>
+        <span style="color:var(--text)">SCRAPER-IDX-01 + SCRAPER-BROKER-01</span>
+        <span style="color:var(--muted)">→ blocks BROKER-FLOW-01 and VOL-ANOMALY-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 5</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">3</span>
+        <span style="color:var(--text)">SCRAPER-KSEI-01</span>
+        <span style="color:var(--muted)">→ blocks FILING-PARSER-01 and AI-SUMMARY-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 5</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">4</span>
+        <span style="color:var(--text)">BROKER-FLOW-01 (z-score output)</span>
+        <span style="color:var(--muted)">→ blocks SCORE-ENGINE-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 8</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">5</span>
+        <span style="color:var(--text)">SCORE-ENGINE-01</span>
+        <span style="color:var(--muted)">→ blocks BANDAR-PROXY-01 and SIGNAL-FEED-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 9</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">6</span>
+        <span style="color:var(--text)">All parsers live (all P1/P2 scrapers complete)</span>
+        <span style="color:var(--muted)">→ blocks PARSER-QA-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 13</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px">
+        <span style="color:var(--crit);width:16px;text-align:center;flex-shrink:0">7</span>
+        <span style="color:var(--text)">PARSER-QA-01 + SCORE-QA-01 + BANDAR-QA-01 all PASS</span>
+        <span style="color:var(--muted)">→ blocks LAUNCH-01</span>
+        <span class="tag tag-red" style="margin-left:auto">WEEK 15</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:40px 0 20px;border-top:1px solid var(--border);margin-top:32px">
+    <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:800;letter-spacing:4px;color:var(--muted)">IDX TERMINAL — AGENT HANDOVER PLAN v1.0</div>
+    <div style="font-size:9px;color:var(--dim);margin-top:6px;letter-spacing:2px">38 AGENTS · 16 WEEKS · $0 INFRA TARGET · PUBLIC LAUNCH</div>
+    <div style="font-size:9px;color:var(--dim);margin-top:4px">Distribute this document to all assigned agents. Each agent reads only their section and the PM Rules.</div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>
