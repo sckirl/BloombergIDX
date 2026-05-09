@@ -96,19 +96,24 @@ const SignalFeed = () => {
   );
 };
 
+import CommandPalette from './CommandPalette';
+
 export default function Home() {
   const [data, setData] = useState<InsiderTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCmdOpen, setIsCmdOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (ticker?: string) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const url = ticker ? `${apiUrl}/insider/accumulation/${ticker}` : `${apiUrl}/insider/latest`;
+      // Note: accumulation endpoint returns different structure, for now stick to latest
       const response = await fetch(`${apiUrl}/insider/latest`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
       const json = await response.json();
-      setData(json);
+      setData(ticker ? json.filter((t: any) => t.ticker === ticker) : json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection error');
     } finally {
@@ -118,13 +123,37 @@ export default function Home() {
 
   useEffect(() => {
     fetchData();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCmdOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fetchData]);
+
+  const handleCommand = (type: string, args: string[]) => {
+    console.log(`Executing: ${type}`, args);
+    if (type === 'INSIDER' && args[0]) {
+      fetchData(args[0]);
+    }
+    // Add more routing as needed
+  };
 
   return (
     <div className="h-screen flex flex-col bg-bg text-fg font-mono overflow-hidden">
       {/* Scanline & CRT Effect */}
       <div className="scanline"></div>
       <div className="crt-overlay"></div>
+
+      {isCmdOpen && (
+        <CommandPalette 
+          onCommand={handleCommand} 
+          onClose={() => setIsCmdOpen(false)} 
+        />
+      )}
 
       {/* Top Header */}
       <header className="h-8 bg-black border-b border-border-custom flex items-center px-4 justify-between z-10">
