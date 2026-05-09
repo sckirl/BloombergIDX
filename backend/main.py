@@ -4,11 +4,22 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Dict, Any
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import threading
 
 from .logger import logger
 from .database import get_db, engine, SessionLocal
+from .models import InsiderTransaction, Base
+from . import models
+from .scraper import run_scraper
+from .utils import (
+    normalize_role, 
+    calculate_score, 
+    get_30d_adv, 
+    get_insider_stats_for_absorption
+)
+
+import os
 
 # Create tables
 try:
@@ -81,7 +92,6 @@ def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = False):
 
 from .cache import get_cache, set_cache, invalidate_cache
 
-# ... (inside get_latest_insiders)
 @app.get("/insider/latest", response_model=List[Dict[str, Any]])
 def get_latest_insiders(db: Session = Depends(get_db)):
     cache_key = "insider_latest"
@@ -102,7 +112,7 @@ def get_latest_insiders(db: Session = Depends(get_db)):
         set_cache(cache_key, result, ttl=60) # 1 minute cache for feed
         return result
     except Exception as e:
-        print(f"Error fetching latest insiders: {e}")
+        logger.error(f"Error fetching latest insiders: {e}")
         return []
 
 @app.get("/insider/top-buy", response_model=List[Dict[str, Any]])
@@ -172,8 +182,6 @@ def get_accumulation_map(ticker: str, db: Session = Depends(get_db)):
     from sqlalchemy import func
     
     # 1. Fetch transactions for the ticker
-    # We round price to nearest 10 for mapping, or just use raw price
-    # For IDX, some prices are large, some small. Let's use raw price first.
     results = db.query(
         InsiderTransaction.price,
         func.sum(InsiderTransaction.shares).label("total_shares"),
@@ -208,7 +216,6 @@ async def get_absorption_ratio(ticker: str, db: Session = Depends(get_db)):
     insider_stats = get_insider_stats_for_absorption(ticker.upper(), db)
     
     # 2. Fetch market volume (30-day ADV)
-    # This is a network call, we use asyncio.to_thread if needed or just call it
     adv_30d, current_price = await asyncio.to_thread(get_30d_adv, ticker.upper())
     
     # 3. Calculate ratio

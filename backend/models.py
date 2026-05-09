@@ -76,7 +76,7 @@ class InsiderTransaction(Base):
     ownership_change_pct = Column(Float)
     direct_ownership = Column(Boolean, default=True)
     purpose = Column(Text)
-    source_url = Column(String(511), unique=True)
+    source_url = Column(String(511), index=True)
     score = Column(Integer, default=0)
     score_reasons = Column(Text) # JSON string of reasons
     rvol = Column(Float) # Relative Volume
