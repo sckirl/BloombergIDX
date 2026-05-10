@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --bg: #000000;
@@ -11,21 +13,10 @@
   --surface: #121212;
 }
 
-@theme inline {
-  --color-bg: var(--bg);
-  --color-fg: var(--fg);
-  --color-acc: var(--acc);
-  --color-acc2: var(--acc2);
-  --color-acc3: var(--acc3);
-  --color-acc4: var(--acc4);
-  --color-border-custom: var(--border);
-  --color-surface: var(--surface);
-}
-
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: 'Geist Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   cursor: crosshair;
 }
 

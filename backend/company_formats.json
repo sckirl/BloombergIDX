@@ -1639,5 +1639,54 @@
         "price": 530.0,
         "date_found": true,
         "total_value_found": true
+    },
+    "NASI": {
+        "last_updated": "2026-05-10",
+        "shares": 6000000.0,
+        "price": 146.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "SOSS": {
+        "last_updated": "2026-05-10",
+        "shares": 120000100.0,
+        "price": 915.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "TRJA": {
+        "last_updated": "2026-05-10",
+        "shares": 877500.0,
+        "price": 131.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "GPSO": {
+        "last_updated": "2026-05-10",
+        "shares": 80000000.0,
+        "price": 440.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "NAIK": {
+        "last_updated": "2026-05-10",
+        "shares": 40000000.0,
+        "price": 106.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "SRSN": {
+        "last_updated": "2026-05-10",
+        "shares": 55081700.0,
+        "price": 69.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "RJPP": {
+        "last_updated": "2026-05-10",
+        "shares": 1.0,
+        "price": 51.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }

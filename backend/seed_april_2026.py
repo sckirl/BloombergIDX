@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import InsiderTransaction, Stock
 from .utils import calculate_score, calculate_confidence
+from .logger import logger
 
 def seed_data():
     db = SessionLocal()
+    current_year = datetime.now().year
     try:
         # Data extracted from idx_data.json
         recent_data = [
@@ -17,7 +19,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 500000,
                 "price": 150,
-                "date": datetime(2026, 4, 9).date(),
+                "date": datetime(current_year, 4, 9).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-09042026-4530-00.pdf-0.pdf"
             },
             {
@@ -27,7 +29,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 100000,
                 "price": 600,
-                "date": datetime(2026, 4, 9).date(),
+                "date": datetime(current_year, 4, 9).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-09042026-6185-00.pdf-0.pdf"
             },
             {
@@ -37,7 +39,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 2000000,
                 "price": 100,
-                "date": datetime(2026, 4, 8).date(),
+                "date": datetime(current_year, 4, 8).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-08042026-5269-00.pdf-0.pdf"
             },
             {
@@ -47,7 +49,7 @@ def seed_data():
                 "transaction_type": "SELL",
                 "shares": 1000000,
                 "price": 80,
-                "date": datetime(2026, 4, 8).date(),
+                "date": datetime(current_year, 4, 8).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-08042026-3997-00.pdf-0.pdf"
             },
             {
@@ -57,7 +59,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 300000,
                 "price": 120,
-                "date": datetime(2026, 4, 8).date(),
+                "date": datetime(current_year, 4, 8).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-08042026-2482-00.pdf-0.pdf"
             },
             {
@@ -67,7 +69,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 150000,
                 "price": 50,
-                "date": datetime(2026, 4, 8).date(),
+                "date": datetime(current_year, 4, 8).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-08042026-8944-00.pdf-0.pdf"
             },
             {
@@ -77,7 +79,7 @@ def seed_data():
                 "transaction_type": "BUY",
                 "shares": 5000000,
                 "price": 90,
-                "date": datetime(2026, 4, 8).date(),
+                "date": datetime(current_year, 4, 8).date(),
                 "source_url": "https://www.idx.co.id/StaticData/NewsAndAnnouncement/ANNOUNCEMENTSTOCK/From_KSEI/LK-08042026-1606-00.pdf-0.pdf"
             }
         ]
@@ -112,9 +114,9 @@ def seed_data():
                 db.add(transaction)
         
         db.commit()
-        print(f"Successfully seeded {len(recent_data)} recent transactions.")
+        logger.info(f"Successfully seeded {len(recent_data)} recent transactions.")
     except Exception as e:
-        print(f"Error seeding data: {e}")
+        logger.error(f"Error seeding data: {e}")
         db.rollback()
     finally:
         db.close()

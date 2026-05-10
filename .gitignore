@@ -1,5 +1,7 @@
 # --- 🇮🇩 IDX OpenInsider Gitignore ---
 
+page-*
+
 # Environment & Secrets (CRITICAL)
 .env
 .env.*

@@ -4,9 +4,11 @@ from datetime import datetime
 from .database import SessionLocal
 from .models import InsiderTransaction
 from .utils import calculate_score
+from .logger import logger
 
 def seed_data():
     db = SessionLocal()
+    current_year = datetime.now().year
     # Path relative to backend directory in container
     test_cases_path = "/docs/TEST_CASES.json"
     if not os.path.exists(test_cases_path):
@@ -17,11 +19,6 @@ def seed_data():
             test_cases_path = "docs/TEST_CASES.json"
 
     try:
-        # In the container, we might need to find where docs is. 
-        # Actually, let's just use the absolute path from the root of the project inside container if mapped.
-        # But wait, docs is NOT copied into backend. 
-        # I'll use a hardcoded small subset if I can't find it, or just copy it.
-        
         # Let's try to find it
         possible_paths = [
             "/docs/TEST_CASES.json",
@@ -38,7 +35,7 @@ def seed_data():
                 break
         
         if data is None:
-            print("Could not find TEST_CASES.json, using fallback internal data.")
+            logger.info("Could not find TEST_CASES.json, using fallback internal data.")
             data = [
               {
                 "ticker": "BBCA",
@@ -48,8 +45,8 @@ def seed_data():
                 "shares": 10000,
                 "price": 9000,
                 "value": 90000000,
-                "date": "2026-10-01",
-                "filing_date": "2026-10-02",
+                "date": f"{current_year}-04-01",
+                "filing_date": f"{current_year}-04-02",
                 "ownership_before": 1000000,
                 "ownership_after": 1010000,
                 "ownership_change_pct": 1.0,
@@ -65,8 +62,8 @@ def seed_data():
                 "shares": 500000,
                 "price": 60,
                 "value": 30000000,
-                "date": "2026-10-05",
-                "filing_date": "2026-10-06",
+                "date": f"{current_year}-04-05",
+                "filing_date": f"{current_year}-04-06",
                 "ownership_before": 50000000,
                 "ownership_after": 50500000,
                 "ownership_change_pct": 1.0,
@@ -80,7 +77,8 @@ def seed_data():
             # Check if exists
             existing = db.query(InsiderTransaction).filter(
                 InsiderTransaction.ticker == entry["ticker"],
-                InsiderTransaction.insider_name == entry["insider_name"]
+                InsiderTransaction.insider_name == entry["insider_name"],
+                InsiderTransaction.source_url == entry["source_url"]
             ).first()
             
             if not existing:
@@ -96,12 +94,12 @@ def seed_data():
                 
                 transaction = InsiderTransaction(**entry)
                 db.add(transaction)
-                print(f"Seeded: {entry['ticker']} - {entry['insider_name']}")
+                logger.info(f"Seeded: {entry['ticker']} - {entry['insider_name']}")
         
         db.commit()
-        print("Seeding complete.")
+        logger.info("Seeding complete.")
     except Exception as e:
-        print(f"Error seeding data: {e}")
+        logger.error(f"Error seeding data: {e}")
         db.rollback()
     finally:
         db.close()

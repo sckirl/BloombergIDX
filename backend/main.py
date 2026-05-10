@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -6,6 +7,7 @@ from typing import List, Dict, Any
 import asyncio
 from datetime import datetime, timezone, timedelta, date
 import threading
+from decimal import Decimal
 
 from .logger import logger
 from .database import get_db, engine, SessionLocal
@@ -30,6 +32,14 @@ except Exception as e:
 
 app = FastAPI(title="IDX OpenInsider API")
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global Error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal Terminal Error", "detail": str(exc) if os.getenv("DEBUG") else "An unexpected error occurred."},
+    )
+
 # Add CORS middleware to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
@@ -39,10 +49,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global lock for scraper to prevent concurrent runs
+scraper_lock = threading.Lock()
+
 async def run_scraper_async(full_year=False):
+    if scraper_lock.locked():
+        logger.warning("Scraper is already running. Skipping this trigger.")
+        return
+    
     try:
         logger.info(f"Background Task: Running scraper (full_year={full_year})...")
-        await asyncio.to_thread(run_scraper, full_year=full_year)
+        with scraper_lock:
+            await asyncio.to_thread(run_scraper, full_year=full_year)
         logger.info("Background Task: Scraper finished.")
     except Exception as e:
         logger.error(f"Background Task Error: {e}", exc_info=True)
@@ -86,28 +104,41 @@ def read_root():
     return {"message": "Welcome to IDX OpenInsider API", "status": "running"}
 
 @app.get("/insider/scrape")
-def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = False):
-    background_tasks.add_task(run_scraper, full_year=full_year)
-    return {"message": f"Scraper task (full_year={full_year}) added to background queue"}
+async def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = False):
+    if scraper_lock.locked():
+        return {"message": "Scraper is already running", "status": "busy"}
+    
+    background_tasks.add_task(run_scraper_async, full_year=full_year)
+    return {"message": f"Scraper task (full_year={full_year}) triggered"}
+
+def to_dict(obj):
+    """Convert SQLAlchemy model instance to dict with Decimal -> float conversion."""
+    d = {}
+    for column in obj.__table__.columns:
+        val = getattr(obj, column.name)
+        if isinstance(val, Decimal):
+            d[column.name] = float(val)
+        elif isinstance(val, (datetime, date)):
+            d[column.name] = val.isoformat()
+        else:
+            d[column.name] = val
+    return d
 
 from .cache import get_cache, set_cache, invalidate_cache
 
 @app.get("/insider/latest", response_model=List[Dict[str, Any]])
-def get_latest_insiders(db: Session = Depends(get_db)):
-    cache_key = "insider_latest"
+def get_latest_insiders(ticker: str = None, db: Session = Depends(get_db)):
+    cache_key = f"insider_latest_{ticker}" if ticker else "insider_latest"
     cached = get_cache(cache_key)
     if cached: return cached
 
     try:
-        transactions = db.query(InsiderTransaction).order_by(InsiderTransaction.filing_date.desc()).limit(1000).all()
-        result = []
-        for t in transactions:
-            t_dict = {c.name: getattr(t, c.name) for c in t.__table__.columns}
-            # Convert date objects to strings for JSON serialization in cache
-            for k, v in t_dict.items():
-                if isinstance(v, (datetime, date)):
-                    t_dict[k] = v.isoformat()
-            result.append(t_dict)
+        query = db.query(InsiderTransaction)
+        if ticker:
+            query = query.filter(InsiderTransaction.ticker == ticker.upper())
+        
+        transactions = query.order_by(InsiderTransaction.filing_date.desc()).limit(1000).all()
+        result = [to_dict(t) for t in transactions]
         
         set_cache(cache_key, result, ttl=60) # 1 minute cache for feed
         return result
@@ -117,13 +148,23 @@ def get_latest_insiders(db: Session = Depends(get_db)):
 
 @app.get("/insider/top-buy", response_model=List[Dict[str, Any]])
 def get_top_buys(db: Session = Depends(get_db)):
+    cached = get_cache("insider_top_buy")
+    if cached: return cached
+    
     transactions = db.query(InsiderTransaction).filter(InsiderTransaction.transaction_type == "BUY").order_by(InsiderTransaction.score.desc()).limit(50).all()
-    return [{c.name: getattr(t, c.name) for c in t.__table__.columns} for t in transactions]
+    result = [to_dict(t) for t in transactions]
+    set_cache("insider_top_buy", result, ttl=300)
+    return result
 
 @app.get("/insider/top-sell", response_model=List[Dict[str, Any]])
 def get_top_sells(db: Session = Depends(get_db)):
+    cached = get_cache("insider_top_sell")
+    if cached: return cached
+
     transactions = db.query(InsiderTransaction).filter(InsiderTransaction.transaction_type == "SELL").order_by(InsiderTransaction.score.asc()).limit(50).all()
-    return [{c.name: getattr(t, c.name) for c in t.__table__.columns} for t in transactions]
+    result = [to_dict(t) for t in transactions]
+    set_cache("insider_top_sell", result, ttl=300)
+    return result
 
 @app.get("/insider/clusters")
 def get_insider_clusters(
@@ -136,6 +177,10 @@ def get_insider_clusters(
     Identifies 'Cluster Buys' where multiple unique insiders are buying 
     the same ticker within a rolling window.
     """
+    cache_key = f"insider_clusters_{days}_{min_insiders}"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
     cutoff_date = datetime.now().date() - timedelta(days=days)
     
     # 1. Fetch all buys in the window
@@ -164,14 +209,15 @@ def get_insider_clusters(
                 "ticker": ticker,
                 "insider_count": count,
                 "transaction_count": len(transactions),
-                "last_date": transactions[0].date,
-                "total_value": sum(t.value for t in transactions),
+                "last_date": transactions[0].date.isoformat(),
+                "total_value": float(sum(t.value for t in transactions)),
                 "insiders": list(unique_insiders),
-                "activity": [{c.name: getattr(t, c.name) for c in t.__table__.columns} for t in transactions]
+                "activity": [to_dict(t) for t in transactions]
             })
             
     # Sort clusters by insider count (high to low)
     clusters.sort(key=lambda x: x["insider_count"], reverse=True)
+    set_cache(cache_key, clusters, ttl=300)
     return clusters
 
 @app.get("/insider/accumulation/{ticker}")
@@ -179,6 +225,10 @@ def get_accumulation_map(ticker: str, db: Session = Depends(get_db)):
     """
     Groups historical insider trades by price and sums up buy/sell shares.
     """
+    cache_key = f"insider_acc_map_{ticker.upper()}"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
     from sqlalchemy import func
     
     # 1. Fetch transactions for the ticker
@@ -204,6 +254,7 @@ def get_accumulation_map(ticker: str, db: Session = Depends(get_db)):
     
     # Sort by price descending (top to bottom)
     price_map.sort(key=lambda x: x["price"], reverse=True)
+    set_cache(cache_key, price_map, ttl=600)
     return price_map
 
 @app.get("/insider/absorption/{ticker}")
@@ -212,6 +263,10 @@ async def get_absorption_ratio(ticker: str, db: Session = Depends(get_db)):
     Calculates the Absorption Ratio: 
     (Total Shares Bought by Insiders / 30-Day Avg Daily Volume)
     """
+    cache_key = f"insider_absorption_{ticker.upper()}"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
     # 1. Fetch insider stats (last 90 days)
     insider_stats = get_insider_stats_for_absorption(ticker.upper(), db)
     
@@ -223,7 +278,7 @@ async def get_absorption_ratio(ticker: str, db: Session = Depends(get_db)):
     if adv_30d > 0:
         ratio = insider_stats["total_shares"] / adv_30d
         
-    return {
+    result = {
         "ticker": ticker.upper(),
         "total_shares_bought": insider_stats["total_shares"],
         "adv_30d": adv_30d,
@@ -231,3 +286,209 @@ async def get_absorption_ratio(ticker: str, db: Session = Depends(get_db)):
         "current_price": current_price,
         "transaction_count": insider_stats["transaction_count"]
     }
+    set_cache(cache_key, result, ttl=600)
+    return result
+
+@app.get("/insider/flow/{ticker}")
+def get_broker_flow(ticker: str, days: int = 30, db: Session = Depends(get_db)):
+    """
+    Calculates broker concentration and accumulation flow for a ticker.
+    """
+    cache_key = f"broker_flow_{ticker.upper()}_{days}"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
+    from sqlalchemy import func
+    from .models import Stock, BrokerTransaction
+    
+    stock = db.query(Stock).filter(Stock.ticker == ticker.upper()).first()
+    if not stock:
+        return {"error": "Stock not found"}
+
+    cutoff_date = datetime.now().date() - timedelta(days=days)
+    
+    # Aggregate transactions by broker
+    results = db.query(
+        BrokerTransaction.broker_code,
+        BrokerTransaction.broker_name,
+        func.sum(BrokerTransaction.buy_value).label("total_buy"),
+        func.sum(BrokerTransaction.sell_value).label("total_sell"),
+        func.sum(BrokerTransaction.net_value).label("total_net")
+    ).filter(
+        BrokerTransaction.stock_id == stock.id,
+        BrokerTransaction.date >= cutoff_date
+    ).group_by(
+        BrokerTransaction.broker_code,
+        BrokerTransaction.broker_name
+    ).all()
+
+    brokers = []
+    total_net_abs = 0
+    for r in results:
+        brokers.append({
+            "broker_code": r.broker_code,
+            "broker_name": r.broker_name,
+            "buy_value": int(r.total_buy or 0),
+            "sell_value": int(r.total_sell or 0),
+            "net_value": int(r.total_net or 0)
+        })
+        total_net_abs += abs(int(r.total_net or 0))
+
+    # Sort and take top 10
+    top_buyers = sorted([b for b in brokers if b["net_value"] > 0], key=lambda x: x["net_value"], reverse=True)[:10]
+    top_sellers = sorted([b for b in brokers if b["net_value"] < 0], key=lambda x: x["net_value"])[:10]
+
+    # Concentration Calculation (Top 5 buyers net / Total net of all buyers)
+    total_buy_net = sum(b["net_value"] for b in brokers if b["net_value"] > 0)
+    top_5_buy_net = sum(b["net_value"] for b in top_buyers[:5])
+    concentration = float(round(top_5_buy_net / total_buy_net, 4)) if total_buy_net > 0 else 0.0
+
+    result = {
+        "ticker": ticker.upper(),
+        "period_days": days,
+        "concentration": concentration,
+        "top_buyers": top_buyers,
+        "top_sellers": top_sellers,
+        "summary": {
+            "total_brokers": len(brokers),
+            "total_buy_value": sum(b["buy_value"] for b in brokers),
+            "total_sell_value": sum(b["sell_value"] for b in brokers)
+        }
+    }
+    
+    set_cache(cache_key, result, ttl=300)
+    return result
+
+@app.get("/insider/anomalies")
+def get_anomalies(db: Session = Depends(get_db)):
+    """
+    Detects volume and price anomalies in the last 7 days.
+    """
+    cache_key = "market_anomalies"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
+    from sqlalchemy import func
+    from .models import Stock, PriceTick
+    
+    # 1. Get recent ticks (last 7 days) and historical average (previous 20 days)
+    # This is a simplified version. A production version would use more complex SQL.
+    
+    seven_days_ago = datetime.now().date() - timedelta(days=7)
+    
+    # Get latest ticks for each stock
+    latest_ticks_sub = db.query(
+        PriceTick.stock_id,
+        func.max(PriceTick.date).label("max_date")
+    ).group_by(PriceTick.stock_id).subquery()
+    
+    latest_ticks = db.query(PriceTick).join(
+        latest_ticks_sub, 
+        (PriceTick.stock_id == latest_ticks_sub.c.stock_id) & (PriceTick.date == latest_ticks_sub.c.max_date)
+    ).all()
+    
+    anomalies = []
+    for tick in latest_ticks:
+        stock = db.query(Stock).filter(Stock.id == tick.stock_id).first()
+        if not stock: continue
+        
+        # Calculate 20-day ADV (excluding today)
+        adv_20d_res = db.query(func.avg(PriceTick.volume)).filter(
+            PriceTick.stock_id == tick.stock_id,
+            PriceTick.date < tick.date,
+            PriceTick.date >= tick.date - timedelta(days=30)
+        ).scalar()
+        
+        adv_20d = float(adv_20d_res or 0)
+        rvol = float(tick.volume / adv_20d) if adv_20d > 0 else 1.0
+        
+        # Calculate Price Change
+        prev_tick = db.query(PriceTick).filter(
+            PriceTick.stock_id == tick.stock_id,
+            PriceTick.date < tick.date
+        ).order_by(PriceTick.date.desc()).first()
+        
+        price_change = 0.0
+        if prev_tick and prev_tick.close > 0:
+            price_change = float((tick.close - prev_tick.close) / prev_tick.close)
+            
+        # Detect Anomaly: RVOL > 3 or |Price Change| > 5%
+        if rvol >= 3.0 or abs(price_change) >= 0.05:
+            anomalies.append({
+                "ticker": stock.ticker,
+                "name": stock.name,
+                "date": tick.date,
+                "close": float(tick.close),
+                "volume": int(tick.volume),
+                "rvol": float(round(rvol, 2)),
+                "price_change": float(round(price_change, 4)),
+                "anomaly_score": float(round(rvol * abs(price_change) * 100, 2))
+            })
+            
+    anomalies.sort(key=lambda x: x["anomaly_score"], reverse=True)
+    result = anomalies[:50] # Top 50 anomalies
+    
+    set_cache(cache_key, result, ttl=600)
+    return result
+
+@app.get("/insider/heatmap")
+def get_heatmap(db: Session = Depends(get_db)):
+    """
+    Returns sector-wise accumulation data for the heatmap.
+    """
+    cache_key = "market_heatmap"
+    cached = get_cache(cache_key)
+    if cached: return cached
+
+    from sqlalchemy import func
+    from .models import Stock, InsiderTransaction
+    
+    # Last 30 days of insider activity
+    thirty_days_ago = datetime.now().date() - timedelta(days=30)
+    
+    # Query: Sector, Sum(Net Flow)
+    # We'll use a CASE statement to handle BUY vs SELL
+    sector_flow = db.query(
+        Stock.sector,
+        func.sum(
+            func.case(
+                (InsiderTransaction.transaction_type == "BUY", InsiderTransaction.value),
+                (InsiderTransaction.transaction_type == "SELL", -InsiderTransaction.value),
+                else_=0
+            )
+        ).label("net_flow"),
+        func.count(InsiderTransaction.id).label("trade_count")
+    ).join(Stock, Stock.id == InsiderTransaction.stock_id).filter(
+        InsiderTransaction.date >= thirty_days_ago
+    ).group_by(Stock.sector).all()
+    
+    heatmap = []
+    for row in sector_flow:
+        if not row.sector: continue
+        
+        # Get top stock in this sector
+        top_stock = db.query(
+            Stock.ticker,
+            func.sum(
+                func.case(
+                    (InsiderTransaction.transaction_type == "BUY", InsiderTransaction.value),
+                    (InsiderTransaction.transaction_type == "SELL", -InsiderTransaction.value),
+                    else_=0
+                )
+            ).label("stock_net_flow")
+        ).join(Stock, Stock.id == InsiderTransaction.stock_id).filter(
+            Stock.sector == row.sector,
+            InsiderTransaction.date >= thirty_days_ago
+        ).group_by(Stock.ticker).order_by(text("stock_net_flow DESC")).first()
+
+        heatmap.append({
+            "sector": row.sector,
+            "net_flow": float(row.net_flow or 0),
+            "trade_count": int(row.trade_count or 0),
+            "top_ticker": top_stock.ticker if top_stock else None,
+            "sentiment": "BULLISH" if (row.net_flow or 0) > 0 else "BEARISH"
+        })
+        
+    heatmap.sort(key=lambda x: abs(x["net_flow"]), reverse=True)
+    set_cache(cache_key, heatmap, ttl=900)
+    return heatmap

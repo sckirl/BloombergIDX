@@ -20,36 +20,43 @@ def normalize_role(role_str: str) -> str:
         return "PEMEGANG_SAHAM_UTAMA"
     return "OTHERS"
 
+from .logger import logger
+import time
+
 def get_market_metadata(ticker: str) -> Dict[str, Any]:
     """
     Fetch market data (RVOL and Price History) for a ticker via yfinance.
     """
     import yfinance as yf
-    try:
-        # IDX tickers need .JK suffix
-        symbol = f"{ticker.upper()}.JK"
-        stock = yf.Ticker(symbol)
-        
-        # Get history for the last 30 days to calculate 20-day average volume
-        hist = stock.history(period="1mo")
-        if hist.empty:
-            return {"rvol": 1.0, "price_history": []}
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # IDX tickers need .JK suffix
+            symbol = f"{ticker.upper()}.JK"
+            stock = yf.Ticker(symbol)
             
-        # 20-day average volume
-        avg_vol_20 = hist['Volume'].tail(20).mean()
-        current_vol = hist['Volume'].iloc[-1]
-        rvol = current_vol / avg_vol_20 if avg_vol_20 > 0 else 1.0
-        
-        # Last 5 days close prices
-        price_history = hist['Close'].tail(5).tolist()
-        
-        return {
-            "rvol": float(round(rvol, 2)),
-            "price_history": [float(round(p, 2)) for p in price_history]
-        }
-    except Exception as e:
-        print(f"Error fetching market data for {ticker}: {e}")
-        return {"rvol": 1.0, "price_history": []}
+            # Get history for the last 30 days to calculate 20-day average volume
+            hist = stock.history(period="1mo")
+            if hist.empty:
+                return {"rvol": 1.0, "price_history": []}
+                
+            # 20-day average volume
+            avg_vol_20 = hist['Volume'].tail(20).mean()
+            current_vol = hist['Volume'].iloc[-1]
+            rvol = current_vol / avg_vol_20 if avg_vol_20 > 0 else 1.0
+            
+            # Last 5 days close prices
+            price_history = hist['Close'].tail(5).tolist()
+            
+            return {
+                "rvol": float(round(rvol, 2)),
+                "price_history": [float(round(p, 2)) for p in price_history]
+            }
+        except Exception as e:
+            logger.error(f"Error fetching market data for {ticker} (attempt {attempt+1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt) # Exponential backoff
+    return {"rvol": 1.0, "price_history": []}
 
 def get_30d_adv(ticker: str) -> Tuple[float, float]:
     """
@@ -57,19 +64,23 @@ def get_30d_adv(ticker: str) -> Tuple[float, float]:
     Returns (30d_adv, current_price)
     """
     import yfinance as yf
-    try:
-        symbol = f"{ticker.upper()}.JK"
-        stock = yf.Ticker(symbol)
-        hist = stock.history(period="1mo")
-        if hist.empty:
-            return 0.0, 0.0
-        
-        adv = hist['Volume'].mean()
-        current_price = hist['Close'].iloc[-1]
-        return float(adv), float(current_price)
-    except Exception as e:
-        print(f"Error fetching ADV for {ticker}: {e}")
-        return 0.0, 0.0
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            symbol = f"{ticker.upper()}.JK"
+            stock = yf.Ticker(symbol)
+            hist = stock.history(period="1mo")
+            if hist.empty:
+                return 0.0, 0.0
+            
+            adv = hist['Volume'].mean()
+            current_price = hist['Close'].iloc[-1]
+            return float(adv), float(current_price)
+        except Exception as e:
+            logger.error(f"Error fetching ADV for {ticker} (attempt {attempt+1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+    return 0.0, 0.0
 
 def get_insider_stats_for_absorption(ticker: str, db) -> Dict[str, Any]:
     """
@@ -98,37 +109,40 @@ def get_insider_stats_for_absorption(ticker: str, db) -> Dict[str, Any]:
 def get_price_on_date(ticker: str, date: datetime.date) -> float:
     """
     Fetch the historical closing price of a stock on a specific date using yfinance.
-    Enhanced with better fallbacks for weekend/holiday dates.
+    Enhanced with better fallbacks for weekend/holiday dates and retries.
     """
     import yfinance as yf
-    try:
-        if not ticker or ticker == "UNKNOWN":
-            return 0.0
-            
-        symbol = f"{ticker.upper()}.JK"
-        stock = yf.Ticker(symbol)
-        
-        # Fetch history for a small range around the target date to ensure we get a match
-        # Increased range to 7 days to cover long holidays
-        start_date = date - datetime.timedelta(days=7)
-        end_date = date + datetime.timedelta(days=2)
-        hist = stock.history(start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"))
-        
-        if hist.empty:
-            # Try fetching a larger range if empty
-            hist = stock.history(period="1mo")
-            if hist.empty: return 0.0
-            
-        # Get the latest price before or on the target date
-        valid_hist = hist[hist.index.date <= date]
-        if not valid_hist.empty:
-            return float(valid_hist['Close'].iloc[-1])
-        
-        # If no price before, take the first available price (after)
-        return float(hist['Close'].iloc[0])
-    except Exception as e:
-        print(f"Error fetching price for {ticker} on {date}: {e}")
+    if not ticker or ticker == "UNKNOWN":
         return 0.0
+        
+    symbol = f"{ticker.upper()}.JK"
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            stock = yf.Ticker(symbol)
+            
+            # Fetch history for a small range around the target date
+            start_date = date - datetime.timedelta(days=7)
+            end_date = date + datetime.timedelta(days=2)
+            hist = stock.history(start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"))
+            
+            if hist.empty:
+                # Try fetching a larger range if empty
+                hist = stock.history(period="1mo")
+                if hist.empty: return 0.0
+                
+            # Get the latest price before or on the target date
+            valid_hist = hist[hist.index.date <= date]
+            if not valid_hist.empty:
+                return float(valid_hist['Close'].iloc[-1])
+            
+            # If no price before, take the first available price (after)
+            return float(hist['Close'].iloc[0])
+        except Exception as e:
+            logger.error(f"Error fetching price for {ticker} on {date} (attempt {attempt+1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+    return 0.0
 
 def calculate_ownership_change(before: float, after: float) -> float:
     """
@@ -175,9 +189,10 @@ def calculate_confidence(transaction: Dict[str, Any]) -> float:
         
     return float(round(max(0.0, confidence), 2))
 
-def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str]]:
+def calculate_score(transaction: Dict[str, Any], db=None, context: Dict[str, Any] = None) -> Tuple[int, List[str]]:
     """
     Implements the Smart Scoring System with reason breakdown.
+    Optional context dictionary can be used to avoid N+1 DB queries.
     """
     score = 0
     reasons = []
@@ -252,11 +267,11 @@ def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str
             reasons.append(f"Significant Volume Sigma {rvol}x (+2)")
         
         # Repeated Buyer Logic
-        if db and ticker and t_date:
+        prev_buys = context.get("previous_buys_count") if context else None
+        if prev_buys is None and db and ticker and t_date:
             from .models import InsiderTransaction
             thirty_days_ago = t_date - datetime.timedelta(days=30)
-            
-            previous_buys_count = db.query(InsiderTransaction).filter(
+            prev_buys = db.query(InsiderTransaction).filter(
                 InsiderTransaction.ticker == ticker,
                 InsiderTransaction.insider_name == transaction.get("insider_name"),
                 InsiderTransaction.transaction_type == "BUY",
@@ -264,20 +279,20 @@ def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str
                 InsiderTransaction.date < t_date
             ).count()
             
-            if previous_buys_count >= 2:
+        if prev_buys:
+            if prev_buys >= 2:
                 score += 3
-                reasons.append(f"Repeated Buyer: {previous_buys_count + 1}th buy in 30d (+3)")
-            elif previous_buys_count == 1:
+                reasons.append(f"Repeated Buyer: {prev_buys + 1}th buy in 30d (+3)")
+            elif prev_buys == 1:
                 score += 1
                 reasons.append("Follow-on Accumulation (+1)")
 
         # Cluster Buy Logic (BUY or EXERCISE)
-        if db and ticker and t_date:
+        cluster_count = context.get("other_insiders_count") if context else None
+        if cluster_count is None and db and ticker and t_date:
             from .models import InsiderTransaction
-            from sqlalchemy import or_
             seven_days_ago = t_date - datetime.timedelta(days=7)
-            
-            other_insiders_count = db.query(InsiderTransaction.insider_name).filter(
+            cluster_count = db.query(InsiderTransaction.insider_name).filter(
                 InsiderTransaction.ticker == ticker,
                 InsiderTransaction.transaction_type.in_(["BUY", "EXERCISE"]),
                 InsiderTransaction.date >= seven_days_ago,
@@ -285,14 +300,13 @@ def calculate_score(transaction: Dict[str, Any], db=None) -> Tuple[int, List[str
                 InsiderTransaction.insider_name != transaction.get("insider_name")
             ).distinct().count()
             
-            total_insiders = other_insiders_count + 1
-            
-            if total_insiders >= 3:
-                score += 5
-                reasons.append(f"Strong Cluster: {total_insiders} Insiders (+5)")
-            elif total_insiders == 2:
-                score += 3
-                reasons.append("Small Cluster: 2 Insiders (+3)")
+        total_insiders = (cluster_count or 0) + 1
+        if total_insiders >= 3:
+            score += 5
+            reasons.append(f"Strong Cluster: {total_insiders} Insiders (+5)")
+        elif total_insiders == 2:
+            score += 3
+            reasons.append("Small Cluster: 2 Insiders (+3)")
             
     elif t_type == "SELL":
         score -= 2

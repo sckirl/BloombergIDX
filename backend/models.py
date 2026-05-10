@@ -30,10 +30,10 @@ class PriceTick(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     stock_id = Column(Integer, ForeignKey("stocks.id"), index=True)
     date = Column(Date, index=True, nullable=False)
-    open = Column(Float)
-    high = Column(Float)
-    low = Column(Float)
-    close = Column(Float)
+    open = Column(Numeric(precision=18, scale=4))
+    high = Column(Numeric(precision=18, scale=4))
+    low = Column(Numeric(precision=18, scale=4))
+    close = Column(Numeric(precision=18, scale=4))
     volume = Column(BigInteger)
     value = Column(BigInteger)
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -66,25 +66,25 @@ class InsiderTransaction(Base):
     insider_name = Column(String(255), index=True)
     role = Column(String(100))
     transaction_type = Column(String(20)) # BUY, SELL, GIFT, EXERCISE, INHERITANCE, OTHERS
-    shares = Column(Float)
-    price = Column(Float)
-    value = Column(Float)
+    shares = Column(Numeric(precision=24, scale=4))
+    price = Column(Numeric(precision=18, scale=4))
+    value = Column(Numeric(precision=24, scale=4))
     date = Column(Date, index=True) # Actual transaction date
     filing_date = Column(Date, index=True) # Date published on IDX
-    ownership_before = Column(Float)
-    ownership_after = Column(Float)
-    ownership_change_pct = Column(Float)
+    ownership_before = Column(Numeric(precision=24, scale=4))
+    ownership_after = Column(Numeric(precision=24, scale=4))
+    ownership_change_pct = Column(Numeric(precision=12, scale=6))
     direct_ownership = Column(Boolean, default=True)
     purpose = Column(Text)
     source_url = Column(String(511), index=True)
     score = Column(Integer, default=0)
     score_reasons = Column(Text) # JSON string of reasons
-    rvol = Column(Float) # Relative Volume
+    rvol = Column(Numeric(precision=12, scale=4)) # Relative Volume
     is_buyback = Column(Boolean, default=False)
-    insider_win_rate = Column(Float) # Success rate percentage
+    insider_win_rate = Column(Numeric(precision=12, scale=6)) # Success rate percentage
     price_history = Column(Text) # JSON string of last 5 days
     date_inferred = Column(Boolean, default=False)
-    confidence = Column(Float, default=1.0)
+    confidence = Column(Numeric(precision=5, scale=2), default=1.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     stock = relationship("Stock", back_populates="insider_filings")
@@ -119,7 +119,7 @@ class BrokerCluster(Base):
     cluster_type = Column(String(30)) # ACCUMULATION, DISTRIBUTION, CROSS
     window_days = Column(Integer, default=5)
     net_value_idr = Column(BigInteger)
-    confidence = Column(Float)
+    confidence = Column(Numeric(precision=5, scale=2), default=1.0)
     bandar_proxy = Column(Boolean, default=False)
 
     stock = relationship("Stock", back_populates="clusters")

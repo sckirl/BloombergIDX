@@ -3,16 +3,18 @@ import json
 import os
 from datetime import datetime
 
-def fetch_idx_april_2026():
-    # Final IDX API URL for 2026
+def fetch_idx_latest():
+    # Final IDX API URL
     url = "https://www.idx.co.id/primary/ListedCompany/GetAnnouncement"
+    
+    current_year = datetime.now().year
     
     # JSON parameters for the POST request
     data = {
         "indexFrom": 0,
-        "pageSize": 20,
-        "dateFrom": "20260401",
-        "dateTo": "20260409",
+        "pageSize": 50,
+        "dateFrom": f"{current_year}0101",
+        "dateTo": f"{current_year}1231",
         "key": "Laporan Kepemilikan atau Setiap Perubahan Kepemilikan Saham Perusahaan Terbuka",
         "language": "id"
     }
@@ -30,15 +32,15 @@ def fetch_idx_april_2026():
             try:
                 res_json = response.json()
                 print("Successfully fetched JSON data.")
-                with open("/home/sckirl/IdxInsider/april_2026_data.json", "w") as f:
+                output_file = f"idx_data_{current_year}.json"
+                with open(output_file, "w") as f:
                     json.dump(res_json, f, indent=2)
                 
                 # Check results
-                replies = res_json.get("Replies", [])
-                print(f"Total Replies: {len(replies)}")
+                replies = res_json.get("Results") or res_json.get("Replies") or []
+                print(f"Total Results: {len(replies)}")
                 for i, reply in enumerate(replies[:5]):
                     print(f"Item {i+1}: {reply.get('Title')} - {reply.get('PublishedDate')}")
-                    print(f"FullSizeUrl: {reply.get('FullSizeUrl')}")
             except Exception as json_err:
                 print(f"JSON Parse Error: {json_err}")
                 print(f"Response text (first 1000 chars): {response.text[:1000]}")
@@ -48,4 +50,4 @@ def fetch_idx_april_2026():
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    fetch_idx_april_2026()
+    fetch_idx_latest()

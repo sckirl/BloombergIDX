@@ -16,6 +16,53 @@ from .logger import logger
 from .database import SessionLocal, engine
 from .models import InsiderTransaction, Base, Stock
 from .utils import normalize_role, calculate_score, calculate_confidence, get_market_metadata, get_price_on_date, calculate_ownership_change
+import threading
+
+# Lock for thread-safe stock creation
+stock_creation_lock = threading.Lock()
+
+# Constants
+KEYWORDS = ["perubahan kepemilikan", "insider", "saham", "kepemilikan"]
+RESERVED_KEYWORDS = ["IDR", "USD", "SAHAM", "TOTAL"]
+COMPANY_FORMATS_FILE = os.path.join(os.path.dirname(__file__), "company_formats.json")
+
+def parse_indonesian_number(num_str: str) -> float:
+    """
+    Intelligently parses numbers from Indonesian IDX reports.
+    Handles both 1.000,00 and 1,000.00 formats.
+    """
+    if not num_str: return 0.0
+    num_str = num_str.replace("Rp", "").replace("IDR", "").strip()
+    
+    # Heuristic to detect format
+    last_dot = num_str.rfind(".")
+    last_comma = num_str.rfind(",")
+    
+    if last_comma > last_dot:
+        # Indonesian format: 1.234.567,89
+        num_str = num_str.replace(".", "").replace(",", ".")
+    elif last_dot > last_comma:
+        # US/Standard format: 1,234,567.89
+        num_str = num_str.replace(",", "")
+    else:
+        # Ambiguous (only dot or only comma)
+        if last_dot != -1:
+            # If dot is followed by exactly 3 digits, it's likely a thousands separator in ID
+            if len(num_str) - last_dot == 4:
+                num_str = num_str.replace(".", "")
+        elif last_comma != -1:
+            # If comma is followed by exactly 3 digits, it's likely a thousands separator in US
+            if len(num_str) - last_comma == 4:
+                num_str = num_str.replace(",", "")
+            else:
+                num_str = num_str.replace(",", ".")
+                
+    try:
+        # Remove any remaining non-numeric chars except the decimal point
+        num_str = re.sub(r"[^\d\.]", "", num_str)
+        return float(num_str)
+    except:
+        return 0.0
 
 # Ensure DB tables are created
 try:
@@ -132,23 +179,17 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
         # Pattern 1: Nilai Transaksi Total (Common in KSEI reports)
         m_total = re.search(r"(?:Total Nilai Transaksi|Transaction Value|Nilai Transaksi)\s*[:]?\s*Rp?\s*([\d\.,]+)", full_text, re.I)
         if m_total:
-            try:
-                total_value = float(m_total.group(1).replace(".", "").replace(",", "."))
-            except: pass
+            total_value = parse_indonesian_number(m_total.group(1))
 
         # Pattern 2: Jumlah Saham Sebelum/Sesudah & Calculate Shares
         before_match = re.search(r"(?:Jumlah Saham Sebelum Transaksi|Number of shares held before|Status Kepemilikan Sebelum)\s*[:]?\s*([\d\.,]+)", full_text, re.I)
         after_match = re.search(r"(?:Jumlah Saham Setelah Transaksi|Number of shares held after|Status Kepemilikan Setelah)\s*[:]?\s*([\d\.,]+)", full_text, re.I)
         
         if before_match:
-            try:
-                ownership_before = float(before_match.group(1).replace(".", "").replace(",", "."))
-            except: pass
+            ownership_before = parse_indonesian_number(before_match.group(1))
             
         if after_match:
-            try:
-                ownership_after = float(after_match.group(1).replace(".", "").replace(",", "."))
-            except: pass
+            ownership_after = parse_indonesian_number(after_match.group(1))
             
         if ownership_before > 0 and ownership_after > 0:
             shares = abs(ownership_after - ownership_before)
@@ -157,17 +198,13 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
             # Try specific "Jumlah Saham yang dibeli/dijual" patterns
             m_trans_shares = re.search(r"(?:Jumlah Saham yang (?:dibeli|dijual)|Number of shares (?:bought|sold)|Jumlah yang (?:dibeli|dijual))\s*[:]?\s*([\d\.,]+)", full_text, re.I)
             if m_trans_shares:
-                try:
-                    shares = float(m_trans_shares.group(1).replace(".", "").replace(",", "."))
-                except: pass
+                shares = parse_indonesian_number(m_trans_shares.group(1))
 
         if shares == 0:
             # Fallback if specific "Before/After" labels are missing but "Jumlah Saham" exists
             m_shares = re.search(r"(?:Jumlah Saham|Number of Shares|Shares)\s*[:]?\s*([\d\.,]+)", full_text, re.I)
             if m_shares:
-                try:
-                    shares = float(m_shares.group(1).replace(".", "").replace(",", "."))
-                except: pass
+                shares = parse_indonesian_number(m_shares.group(1))
 
         if price == 0 and shares > 0:
             # Pattern 3: Price after shares
@@ -176,17 +213,13 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
             p_pattern = f"{re.escape(shares_str_clean)}[^\\d]+([\\d\\.,]+)"
             m_price = re.search(p_pattern, full_text)
             if m_price:
-                try:
-                    price = float(m_price.group(1).replace(".", "").replace(",", "."))
-                except: pass
+                price = parse_indonesian_number(m_price.group(1))
 
         if price == 0 and shares > 0:
             # Pattern 4: "Harga" followed by price
             m_price2 = re.search(r"(?:Harga|Price|Harga Transaksi|Price of Transaction)\s*[:]?\s*(?:Rp)?\s*([\d\.,]+)", full_text, re.I)
             if m_price2:
-                try:
-                    price = float(m_price2.group(1).replace(".", "").replace(",", "."))
-                except: pass
+                price = parse_indonesian_number(m_price2.group(1))
 
         if price == 0 and shares > 0 and total_value > 0:
             price = total_value / shares
@@ -194,39 +227,14 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
         if shares == 0 and total_value > 0 and price > 0:
             shares = total_value / price
 
-        if shares == 0:
-            # Broad search for the largest number that isn't the total value (if found)
-            clean_text = full_text.replace("Rp", "").replace(".", "").replace(",", ".")
-            all_nums = [float(n) for n in re.findall(r"\b\d+\.\d+\b|\b\d+\b", clean_text)]
-            all_nums = [n for n in all_nums if n > 1]
-            if all_nums:
-                # If we have total_value, shares might be total_value / price_near_it
-                # Otherwise, assume largest is shares
-                potential_shares = max(all_nums)
-                if total_value > 0 and potential_shares == total_value:
-                    # Look for second largest
-                    remaining = [n for n in all_nums if n != total_value]
-                    if remaining: potential_shares = max(remaining)
-                shares = potential_shares
-
         # Fallback to Stock API if price is 0
         api_price = get_price_on_date(ticker, final_date)
         
         if price == 0 or price < 1:
             price = api_price
             
-        if shares == 0:
-            if total_value > 0 and price > 0:
-                shares = total_value / price
-            else:
-                # If we STILL have no shares, look for any large number that isn't the price
-                clean_text = full_text.replace("Rp", "").replace(".", "").replace(",", ".")
-                all_nums = [float(n) for n in re.findall(r"\b\d+\.\d+\b|\b\d+\b", clean_text)]
-                all_nums = [n for n in all_nums if n > 1 and n != price]
-                if all_nums:
-                    shares = max(all_nums)
-                else:
-                    shares = 1.0 # Last resort fallback
+        if shares == 0 and total_value > 0 and price > 0:
+            shares = total_value / price
         
         if total_value == 0:
             total_value = shares * price
@@ -237,13 +245,13 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
              total_value = shares * price
 
         # Final sanity check: if value is still 0, reject this item
-        if total_value == 0:
+        if total_value == 0 or shares == 0:
             return []
 
         # Billionaire Sanity Check & Value Cap
         VALUE_CAP = 100_000_000_000_000 # 100 Trillion IDR
         if total_value > VALUE_CAP:
-            print(f"CRITICAL: Value for {ticker} (IDR {total_value}) exceeds sanity cap. Rejecting as artifact.")
+            logger.error(f"CRITICAL: Value for {ticker} (IDR {total_value}) exceeds sanity cap. Rejecting as artifact.")
             return []
 
         # Record company format
@@ -299,14 +307,15 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
         for t_data in parsed:
             t_data["is_buyback"] = is_buyback
             
-            # Resolve stock_id
+            # Resolve stock_id with lock to prevent race conditions
             ticker = t_data["ticker"]
-            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
-            if not stock:
-                # Create stock if it doesn't exist
-                stock = Stock(ticker=ticker, name=f"Company {ticker}")
-                db.add(stock)
-                db.flush() # Get the ID
+            with stock_creation_lock:
+                stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+                if not stock:
+                    # Create stock if it doesn't exist
+                    stock = Stock(ticker=ticker, name=f"Company {ticker}")
+                    db.add(stock)
+                    db.flush() # Get the ID
             
             t_data["stock_id"] = stock.id
 
@@ -351,9 +360,10 @@ def run_scraper(full_year=False):
                 logger.info(f"Searching: {keyword}")
                 try:
                     if full_year:
-                        date_from = f"{datetime.now().year}0101"
-                        date_to = f"{datetime.now().year}1231"
-                        page_size = 1000
+                        # Target entire 2026 year specifically as requested
+                        date_from = "20260101"
+                        date_to = "20261231"
+                        page_size = 5000 # Increased for full year volume coverage
                     else:
                         date_from = (datetime.now() - timedelta(days=3)).strftime("%Y%m%d")
                         date_to = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
@@ -395,7 +405,7 @@ def run_scraper(full_year=False):
                         
                         if db.query(InsiderTransaction).filter(InsiderTransaction.source_url == url).first(): continue
                         
-                        print(f"Ingesting: {url}")
+                        logger.info(f"Ingesting: {url}")
                         try:
                             b64_script = f"""
                             fetch("{url}").then(res => res.blob()).then(blob => new Promise((resolve, reject) => {{
@@ -410,7 +420,7 @@ def run_scraper(full_year=False):
                             
                             futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title))
                         except Exception as e:
-                            print(f"  - Error fetching {url}: {e}")
+                            logger.error(f"  - Error fetching {url}: {e}")
                         
                         time.sleep(0.5) 
                 
@@ -420,7 +430,7 @@ def run_scraper(full_year=False):
         finally:
             browser.close()
             db.close()
-    print("Scraper Finished.")
+    logger.info("Scraper Finished.")
 
 if __name__ == "__main__":
     import sys
