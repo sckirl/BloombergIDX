@@ -1,70 +1,86 @@
-# Sprint 2: NVIDIA Nemotron Intelligence Layer Integration
+# Sprint 2: NVIDIA Nemotron Intelligence Layer Integration (Refined)
 
 **Duration:** 7 Days  
-**Objective:** Deploy an asynchronous, token-optimized summarization layer using NVIDIA Nemotron to generate Bloomberg-grade narratives from market signals.
+**Objective:** Deploy an asynchronous, resilient, and token-optimized summarization layer using NVIDIA Nemotron Nano to generate Bloomberg-grade narratives from market signals.
 
-## Core Architectural Mandates
-1.  **Asynchronous Processing:** Narratives must be generated in the background using FastAPI `BackgroundTasks` to ensure terminal responsiveness.
-2.  **Preprocessing Pipeline:** Raw data must be transformed via the 'Structured Signal Object' (SSO) and 'Compact Context Builder' (CCB) before being sent to the LLM.
-3.  **Confidence Inheritance:** AI prompts must explicitly enforce probabilistic language (e.g., "suggests," "possible") for signals with confidence scores < 70.
-4.  **Redis Caching:** Implementation of a persistent narrative cache to minimize NVIDIA API costs and latency.
-5.  **Institutional Drawer Binding:** The frontend must expose narratives via the terminal's drill-down 'Drawer' component.
-6.  **Token Efficiency:** Strict character limits (e.g., 2,500 for context, 500 for output) enforced at the middleware level.
+## 🛡️ AI Resilience Mandates (Advisor Certified)
+1.  **Optionality:** The platform MUST remain fully functional even if the NVIDIA API is offline.
+2.  **Zero-Blocking:** AI generation is strictly asynchronous. UI interactions never wait for LLM responses.
+3.  **Confidence Inheritance:** Prompts explicitly enforce probabilistic language (e.g., "may indicate") for signals with confidence < 70.
+4.  **Adversarial QA:** The layer is not "trusted"; it is audited for hallucinations and data drift by dedicated QA agents.
+5.  **State Transparency:** The UI must explicitly report degraded or pending AI states rather than showing generic spinners.
+
+---
+
+## 🏛️ Core Architectural Specifications
+
+### 1. Narrative State Machine
+- `QUEUED`: Signal detected, awaiting background worker.
+- `PROCESSING`: Payload sent to NVIDIA.
+- `SUCCESS`: Narrative cached and ready.
+- `FAILED_RETRYABLE`: Network/Rate limit error.
+- `FAILED_FINAL`: Content safety or logic error.
+- `DEGRADED`: Provider outage; showing "Narrative Unavailable".
+
+### 2. Token & Model Standardization
+- **Model:** `nvidia/nemotron-3-nano-30b-a3b`
+- **Input Budget:** Target 1,500 chars (Max 2,500).
+- **Output Budget:** Target 250 chars (Max 500).
+- **Reasoning Budget:** 512 - 1024 (Zero waste policy).
 
 ---
 
 ## 7-Day Implementation Roadmap
 
-### Day 1: Async Infrastructure & Caching Scaffolding
+### Day 1: Async Infrastructure & Resilience Scaffolding
 - **Infrastructure:** Provision Redis in `docker-compose.yml` for narrative caching.
-- **Backend:** Initialize Redis client and define the narrative schema (`signal_id`, `model_version`, `narrative_text`, `status`).
-- **Orchestration:** Implement FastAPI `BackgroundTasks` for non-blocking summary triggers.
-- **Deliverable:** Verified async task queue with persistent Redis connectivity.
+- **Backend:** Initialize Redis and define the `NarrativeState` enum (QUEUED to DEGRADED).
+- **Fallback:** Implement the `DEGRADED` mode toggle to suppress AI components globally if error rates spike.
+- **Deliverable:** Verified async queue and failure-aware backend skeleton.
 
-### Day 2: Preprocessing & Context Pipeline
-- **SSO Implementation:** Define the `Structured Signal Object` (SSO) in `backend/models.py` to normalize filings, flow, and anomalies.
-- **Context Builder:** Implement the `Compact Context Builder` (CCB) to flatten SSOs into dense strings.
-- **Token Guard:** Implement a strict character-limit validator (max 2,500 chars) for NVIDIA payloads.
-- **Deliverable:** Validated pipeline that transforms raw database records into LLM-ready context.
+### Day 2: SSO & Compact Context Builder
+- **SSO:** Define the `Structured Signal Object` to normalize raw filings into dense JSON.
+- **CCB:** Implement the `Compact Context Builder` to flatten SSOs into high-density prompt strings.
+- **Deduplication:** Hash payloads (`filing_hash` + `prompt_version`) to prevent redundant API calls.
+- **Deliverable:** Validated pipeline that prepares 1,500-char context blocks.
 
-### Day 3: NVIDIA Nemotron Integration & Prompt Engineering
-- **Integration:** Connect to `nvidia/nemotron-3-nano-30b-a3b` via `build.nvidia.com`.
-- **Confidence Logic:** Engineering the "Institutional Narrator" prompt. 
-    - *System Instruction:* "If confidence < 70, use probabilistic qualifiers. Do not declare certainty for weak signals."
-- **Testing:** Unit tests to verify that low-confidence signals produce appropriately cautious narratives.
-- **Deliverable:** Functional NVIDIA API client with uncertainty-aware prompting.
+### Day 3: NVIDIA Nemotron Nano Integration
+- **Client:** Implement OpenAI-compatible client with `NVIDIA_API_KEY` env var protection.
+- **Prompt Engineering:** Standardize the "Bloomberg Terminal" style: dense, filler-free, and probabilistic.
+- **Confidence Logic:** Integrate `confidence_score` into the prompt template.
+- **Deliverable:** Functional API client with uncertainty-aware prompting.
 
-### Day 4: Narrative Service & Lifecycle Management
-- **Task Logic:** Implement the narrative generation service with error handling, retries, and status updates (Pending -> Processing -> Success/Failure).
-- **Cache Logic:** Implement "Read-Through" caching (check Redis first; if missing, trigger async generation and return `PENDING`).
-- **Deliverable:** End-to-end narrative API with lifecycle tracking and caching.
+### Day 4: Narrative Lifecycle Service
+- **Service:** Implement the read-through cache service (Check Redis -> Return SUCCESS/PENDING -> Trigger Async).
+- **Cleanup:** Implement TTL-based cache expiration tied to the 15m scraping interval.
+- **Retry Logic:** Handle `FAILED_RETRYABLE` states with exponential backoff.
+- **Deliverable:** Production-ready narrative management service.
 
-### Day 5: Frontend Binding (Institutional Drawer)
-- **UI Component:** Update the 'Institutional Drawer' (`src/app/Views.tsx`) to display narratives.
-- **Data Binding:** Implement React hooks to fetch narratives; handle loading states and background refresh for `PENDING$ statuses.
-- **Deliverable:** Real-time summary visualization in the terminal UI.
+### Day 5: Frontend Degradation Handling
+- **UI:** Update `InstitutionalDrawer` to handle all 9 state machine statuses.
+- **UX:** Replace generic spinners with status-specific labels (e.g., "SCANNING LEDGER...", "AI UNAVAILABLE").
+- **Visuals:** Add high-visibility "Low Confidence" styling for probabilistic narratives.
+- **Deliverable:** Resilient UI that gracefully handles AI instability.
 
-### Day 6: Token Optimization & Density Audit
-- **Audit:** Conduct a "Token Efficiency Audit" to minimize boilerplate in both prompt and response.
-- **Optimization:** Refine Nemotron's temperature and max_tokens to ensure high-density, "no-fluff" institutional output.
-- **Cache TTL:** Set appropriate Redis expiration based on data freshness (15-minute polling sync).
-- **Deliverable:** Optimized, low-latency summarization layer.
+### Day 6: Performance & Token Audit
+- **Audit:** Conduct a "Token Efficiency Audit" to minimize boilerplate.
+- **Optimization:** Refine Nemotron's temperature (0.2-0.4) for factual consistency.
+- **Latency:** Verify async generation takes < 5 seconds from queue to cache.
+- **Deliverable:** Optimized, low-cost intelligence layer.
 
-### Day 7: Adversarial QA & Validation
-- **QA:** Run "Adversarial QA" (per `GEMINI.md`) to find contradictions between narratives and source data.
-- **Regression:** Verify that the new summarization layer does not degrade existing terminal performance.
-- **Handover:** Finalize `Sprint-2.md` and update `CHANGES.md`.
-- **Deliverable:** Production-ready NVIDIA AI Integration.
+### Day 7: Adversarial QA Strike
+- **QA-AI-HALLUC:** Hostile audit to detect unsupported causality claims.
+- **QA-AI-FAIL:** Simulate rate limits and outages to verify UI optionality.
+- **QA-AI-LATENCY:** Stress test the async queue with 100+ concurrent signals.
+- **Deliverable:** Sprint-2 Certification and Handover.
 
 ---
 
-## Technical Specifications (Mandates)
-
-| Mandate | Implementation Detail |
+## Technical Specs Summary
+| Component | Detail |
 | :--- | :--- |
 | **Async Engine** | FastAPI `BackgroundTasks` |
-| **Context Pipeline** | `Structured Signal Object` -> `Compact Context Builder` |
-| **Confidence Cutoff** | Probabilistic language forced for scores < 70 |
-| **Cache Store** | Redis (TTL tied to 15m polling interval) |
-| **Model** | NVIDIA Nemotron-4 340B Instruct |
-| **Token Limits** | Context: 2,500 chars / Narrative: 500 chars |
+| **Model** | `nvidia/nemotron-3-nano-30b-a3b` |
+| **Style** | Dense Bloomberg-tier, Probabilistic |
+| **Cache Key** | `ticker` + `filing_hash` + `prompt_version` |
+| **Safety** | Zero API keys in source, logs, or prompts |

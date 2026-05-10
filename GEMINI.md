@@ -265,20 +265,15 @@ REQUIRED PM OUTPUTS:
 14. **Entropy Reduction:** Every orchestration layer must reduce system entropy, not create it.
 15. **Verified Throughput:** The PM’s responsibility is maximizing verified throughput. No agent merges directly to main.
 
-### LEGACY SYSTEM ORCHESTRATION RULES
+### AI RESILIENCE RULES (Sprint-2 Mandate)
 
-1. **Assets Over Obstacles:** Existing working systems are strategic assets. Never rewrite stable systems without measurable operational gain.
-2. **Mandatory Absorption:** Understand the current architecture, APIs, and DB schema BEFORE implementing changes. No implementation before system absorption.
-3. **Incremental Evolution:** Prefer incremental enhancement over unnecessary "revolutionary" redesigns.
-4. **Adversarial QA:** QA agents must behave like hostile institutional auditors. Their job is to find contradictions, break orchestration illusions, and expose false confidence.
-5. **Regression Protection:** QA-REGRESS-01 is mandatory for validating existing feature stability and backward compatibility.
-6. **Stability over Elegance:** Production stability is more valuable than architectural elegance or "clean" rewrites.
-7. **Contract Respect:** New features must respect existing contracts and workflows unless explicitly tasked with a breaking change.
-8. **Verified Integration:** Verified integration is more valuable than rapid implementation.
-9. **Transparency over Substitution:** Silent fallback substitution is forbidden. Expose uncertainty and source quality at all times.
-10. **Controlled Evolution:** The PM’s responsibility is controlled evolution, not uncontrolled rebuilding.
-11. **Visibility First:** Operational visibility (telemetry) must exist before any optimization pass.
-12. **Absorption Before Acceleration:** A system must first be deeply understood before it is accelerated.
-13. **Probabilistic Narratives:** AI narratives must inherit the confidence level of underlying data; deterministic narratives from weak inference are forbidden.
-14. **No Silent Failures:** If a component fails, the UI must explicitly report it (with timestamps) to maintain institutional trust.
-15. **Contextual Precedence:** Instructions in GEMINI.md take absolute precedence over general defaults.
+1. **AI is enrichment, not truth.** Deterministic systems remain the intelligence core.
+2. **Platform must work fully without AI.** The terminal DNA is not dependent on LLMs.
+3. **AI requests must be async and cached.** Never block the UI or core API responses.
+4. **Token efficiency is mandatory.** Every token sent must justify operational value.
+5. **AI narratives inherit confidence levels.** Low-confidence signals = Probabilistic language.
+6. **Frontend must expose degraded AI states.** No generic spinners; show the state machine.
+7. **QA must simulate provider instability.** Hostile audit of rate limits and outages.
+8. **Cached summaries are preferred.** Avoid regenerating identical narratives.
+9. **AI summarizes structured signals, not raw filings.** Preprocessing is mandatory.
+10. **Failure handling over happy-path.** Resilient degradation is the primary KPI.
