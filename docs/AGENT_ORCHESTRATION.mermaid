@@ -1,90 +1,75 @@
 graph TD
-    %% Global Styles
-    classDef supervisor fill:#6a1b9a,stroke:#4a148c,color:#fff,stroke-width:4px;
-    classDef pm fill:#fbc02d,stroke:#f57f17,color:#000,font-weight:bold;
-    classDef ba fill:#0277bd,stroke:#01579b,color:#fff;
-    classDef dev fill:#2e7d32,stroke:#1b5e20,color:#fff;
-    classDef qa fill:#c62828,stroke:#b71c1c,color:#fff;
-    classDef infrastructure fill:#37474f,stroke:#263238,color:#fff,stroke-dasharray: 5 5;
-    classDef external fill:#4527a0,stroke:#311b92,color:#fff;
+    %% Global Styles & Classes
+    classDef orchestrator fill:#FFA500,stroke:#000,stroke-width:3px,color:#000,font-weight:bold
+    classDef pro_track fill:#2979FF,stroke:#fff,stroke-width:1px,color:#fff
+    classDef fast_track fill:#00E676,stroke:#000,stroke-width:1px,color:#000
+    classDef heavy_gate fill:#FF1744,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef infra fill:#121212,stroke:#333,stroke-width:1px,color:#888
 
-    subgraph User_Interface [Institutional Intelligence Layer]
-        User((User/Owner))
-        Tailscale[Tailscale / Remote Access]:::infrastructure
-        ProdURL[Next.js Dashboard :6969]
-        TickerDrawer[Institutional Drawer: Map/Absorption]:::pm
-        Stockbit[Stockbit Verification]:::external
+    %% Core PM Orchestrator
+    PM("fa:fa-user-tie ELITE PM ORCHESTRATOR<br/>(20y Bloomberg Experience)"):::orchestrator
+
+    %% Track A: Infrastructure
+    subgraph TrackA ["fa:fa-server TRACK A: INFRA & STATE (PRO)"]
+        direction TB
+        SM["fa:fa-clock STATE-MACHINE-01<br/>(9-State Lifecycle)"]:::pro_track
+        RE["fa:fa-undo RETRY-ENGINE-01<br/>(Exp. Backoff)"]:::pro_track
+        RC["fa:fa-database REDIS-CORE-01<br/>(Cache Scaffolding)"]:::pro_track
     end
 
-    subgraph Control_Plane [Command \u0026 Control]
-        Supervisor[Gemini CLI / Lead Architect]:::supervisor
-        PM[Project Manager Agent]:::pm
+    %% Track B: Compression
+    subgraph TrackB ["fa:fa-compress TRACK B: COMPRESSION (PRO/FAST)"]
+        direction TB
+        SSO["fa:fa-file-invoice SSO-PIPE-01 (PRO)<br/>(Signal Normalization)"]:::pro_track
+        CCB["fa:fa-align-left CCB-PIPE-01 (FAST)<br/>(Context Flattening)"]:::fast_track
+        TG["fa:fa-shield-halved TOKEN-GUARD-01 (FAST)<br/>(Hard Cap Enforcement)"]:::fast_track
     end
 
-    subgraph Intelligence_Layer [Data \u0026 Signal Logic]
-        BA[Business Analyst / Researcher]:::ba
-        Scoring[Smart Scoring \u0026 Cluster Engine]
-        AbsRatio[Absorption Ratio Math]:::ba
-        PriceMap[Accumulation Price Map Logic]:::ba
+    %% Track C: NVIDIA
+    subgraph TrackC ["fa:fa-brain TRACK C: NVIDIA LAYER (PRO)"]
+        direction TB
+        NC["fa:fa-plug NVIDIA-CLIENT-01<br/>(Nemotron Nano SDK)"]:::pro_track
+        AQ["fa:fa-list-ol AI-QUEUE-01<br/>(Async Worker)"]:::pro_track
+        AC["fa:fa-memory AI-CACHE-01<br/>(Read-Through Cache)"]:::pro_track
     end
 
-    subgraph Execution_Core [Engineering \u0026 API Delivery]
-        DEV[Developer Agent]:::dev
-        API[FastAPI Backend :8000]
-        Scraper[Multi-threaded PDF/HTML Scraper]
-        YFinance[yfinance Market Data API]:::external
-        Scheduler[Randomized Scheduler 1AM-5AM]:::infrastructure
+    %% Track D: UX
+    subgraph TrackD ["fa:fa-desktop TRACK D: TERMINAL UX (FAST)"]
+        direction TB
+        DS["fa:fa-columns DRAWER-STATE-01<br/>(Async Binding)"]:::fast_track
+        ASX["fa:fa-terminal AI-STATUS-UX-01<br/>(State Labels)"]:::fast_track
+        CX["fa:fa-chart-line CONFIDENCE-UX-01<br/>(Uncertainty UI)"]:::fast_track
     end
 
-    subgraph Data_Layer [Source \u0026 Storage]
-        IDX_API[(IDX 2026 API / PDF)]
-        DB[(PostgreSQL)]
+    %% Track E: Adversarial QA
+    subgraph TrackE ["fa:fa-skull-crossbones TRACK E: ADVERSARIAL QA (HEAVY)"]
+        direction TB
+        QH["QA-AI-HALLUC-01<br/>(Fabrication Audit)"]:::heavy_gate
+        QF["QA-AI-FAIL-01<br/>(Outage Simulation)"]:::heavy_gate
+        QL["QA-AI-LATENCY-01<br/>(Stress Testing)"]:::heavy_gate
+        QR["QA-AI-REGRESS-01<br/>(Performance Guard)"]:::heavy_gate
     end
 
-    subgraph Validation_Layer [Quality \u0026 Integrity]
-        QA[QA Engineer Agent]:::qa
+    %% Infrastructure Components
+    subgraph External ["fa:fa-cloud EXTERNAL INFRA"]
+        NV["fa:fa-microchip NVIDIA build.nvidia.com"]:::infra
+        RD["fa:fa-bolt Redis Cache"]:::infra
+        DB["fa:fa-table PostgreSQL"]:::infra
     end
 
-    %% Workflow Flow
-    User -->|Access via| Tailscale
-    Tailscale -->|Browser| ProdURL
-    ProdURL -->|Inspect Ticker| TickerDrawer
-    TickerDrawer -->|Execution| Stockbit
+    %% Workflow & Dependencies
+    PM ==> TrackA & TrackB & TrackC & TrackD & TrackE
     
-    User -->|Directives| Supervisor
-    Supervisor -->|Plan Mode| PM
-    PM -->|Features| BA
-    BA -->|Data Logic| Scoring
-    BA -->|Institutional Specs| AbsRatio
-    BA -->|Visual Logic| PriceMap
+    TrackB -->|"fa:fa-arrow-right 1,500 Chars"| TrackC
+    TrackC -->|"fa:fa-arrow-right Narrative"| TrackD
     
-    PriceMap -->|API Schema| DEV
-    AbsRatio -->|API Schema| DEV
-    
-    DEV -->|Implement| API
-    DEV -->|Ingestion| Scraper
-    
-    API <-->|Fetch Price History| YFinance
-    API <-->|Serve Aggregates| DB
-    Scraper -->|Ingest| IDX_API
-    Scraper -->|Store| DB
-    
-    Scheduler -->|Trigger| Scraper
-    
-    %% QA Loop
-    QA -->|Institutional Data Tests| API
-    QA -->|Visual Regression| TickerDrawer
-    QA -->|Schema Integrity| DB
-    QA -->|UAT Reports| Supervisor
+    TrackC <--> NV
+    TrackA <--> RD
+    TrackB <--> DB
 
-    %% Connectivity
-    ProdURL <-->|NEXT_PUBLIC_API_URL| API
+    TrackE -.->|"fa:fa-ban HOSTILE AUDIT"| TrackB & TrackC & TrackD
+    TrackE -.->|"fa:fa-check-double GATING"| PM
 
-    %% Agent Duties
-    subgraph Agent_Specialization [Current Sprint Roles]
-        direction LR
-        PM_D[UX / Drawer Workflow / Approval]:::pm
-        BA_D[Liquidity Math / Price Map Research]:::ba
-        DEV_D[FastAPI / yfinance / Next.js Drawer]:::dev
-        QA_D[Absorption Logic Verification / UAT]:::qa
-    end
+    %% Footer Layout
+    Note1["fa:fa-info-circle ZERO-ROOM-FOR-ERROR MANDATE"]
+    Note1 --- PM

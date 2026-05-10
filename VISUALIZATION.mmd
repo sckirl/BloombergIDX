@@ -1,0 +1,70 @@
+graph TD
+    %% Global Styles & Classes
+    classDef orchestrator fill:#FFA500,stroke:#000,stroke-width:3px,color:#000,font-weight:bold
+    classDef pro_track fill:#2979FF,stroke:#fff,stroke-width:1px,color:#fff
+    classDef fast_track fill:#00E676,stroke:#000,stroke-width:1px,color:#000
+    classDef heavy_gate fill:#FF1744,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold
+    classDef completed fill:#444,stroke:#333,stroke-width:1px,color:#888
+    classDef future fill:#121212,stroke:#2979FF,stroke-width:1px,color:#2979FF,stroke-dasharray: 5 5
+    classDef infra fill:#121212,stroke:#333,stroke-width:1px,color:#888
+
+    %% Core PM Orchestrator
+    PM("fa:fa-user-tie ELITE PM ORCHESTRATOR<br/>(Zero-Trust Command)"):::orchestrator
+
+    %% PROJECT ROADMAP (Left Wing)
+    subgraph Roadmap ["fa:fa-map-signs STRATEGIC ROADMAP"]
+        S1["fa:fa-check-circle SPRINT 1: FOUNDATION<br/>(Terminal DNA & Data Integrity)"]:::completed
+        S2["fa:fa-microchip SPRINT 2: INTELLIGENCE<br/>(NVIDIA Nemotron & Async NLP)"]:::orchestrator
+        S3["fa:fa-chart-pie SPRINT 3: QUANT FLOW<br/>(Advanced Broker Clustering)"]:::future
+        S4["fa:fa-robot SPRINT 4: AUTONOMOUS<br/>(Predictive Smart Money Alerts)"]:::future
+        
+        S1 ==> S2 ==> S3 ==> S4
+    end
+
+    %% ACTIVE SPRINT-2 ORCHESTRATION (Center)
+    subgraph Tracks ["fa:fa-cogs SPRINT-2: PARALLEL EXECUTION TRACKS"]
+        direction TB
+        
+        subgraph TrackA ["fa:fa-server TRACK A: INFRA (PRO)"]
+            SM["fa:fa-clock State Machine<br/>(9-State Lifecycle)"]:::pro_track
+            RE["fa:fa-undo Retry Engine<br/>(Exp. Backoff)"]:::pro_track
+        end
+
+        subgraph TrackB ["fa:fa-compress TRACK B: PIPELINE (PRO)"]
+            SSO["fa:fa-file-invoice Signal Normalization<br/>(SSO & CCB)"]:::pro_track
+            TG["fa:fa-shield-halved Token Guard<br/>(Hard Cap Enforcement)"]:::pro_track
+        end
+
+        subgraph TrackC ["fa:fa-brain TRACK C: NVIDIA (PRO)"]
+            NC["fa:fa-plug Nemotron SDK<br/>(Async Worker)"]:::pro_track
+            AC["fa:fa-memory Narrative Cache<br/>(Redis Layer)"]:::pro_track
+        end
+
+        subgraph TrackD ["fa:fa-desktop TRACK D: UX (FAST)"]
+            DS["fa:fa-columns Drawer Binding<br/>(Async States)"]:::fast_track
+            CX["fa:fa-chart-line Confidence UI<br/>(Probabilistic Language)"]:::fast_track
+        end
+    end
+
+    %% ADVERSARIAL QA GATE (Right Wing)
+    subgraph TrackE ["fa:fa-skull-crossbones TRACK E: ADVERSARIAL QA (HEAVY)"]
+        direction TB
+        QH["QA-AI-HALLUC-01<br/>(Fabrication Audit)"]:::heavy_gate
+        QF["QA-AI-FAIL-01<br/>(Outage Simulation)"]:::heavy_gate
+        QR["QA-AI-REGRESS-01<br/>(Stability Guard)"]:::heavy_gate
+    end
+
+    %% Workflow & Dependencies
+    PM ==> Roadmap
+    PM ==> Tracks
+    PM ==> TrackE
+
+    TrackB -->|"fa:fa-arrow-right 1.5k Context"| TrackC
+    TrackC -->|"fa:fa-arrow-right Cached Summary"| TrackD
+    
+    TrackE -.->|"fa:fa-ban HOSTILE AUDIT"| Tracks
+    TrackE -.->|"fa:fa-check-double GATING"| PM
+
+    %% Footer Layout
+    Note1["fa:fa-info-circle SPRINT-2 STATUS: ACTIVE | TARGET RELEASE: MAY 17, 2026"]
+    Note1 --- PM

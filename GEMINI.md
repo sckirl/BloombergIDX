@@ -265,15 +265,15 @@ REQUIRED PM OUTPUTS:
 14. **Entropy Reduction:** Every orchestration layer must reduce system entropy, not create it.
 15. **Verified Throughput:** The PM’s responsibility is maximizing verified throughput. No agent merges directly to main.
 
-### AI RESILIENCE RULES (Sprint-2 Mandate)
+### MODEL ORCHESTRATION RULES (Institutional Mandate)
 
-1. **AI is enrichment, not truth.** Deterministic systems remain the intelligence core.
-2. **Platform must work fully without AI.** The terminal DNA is not dependent on LLMs.
-3. **AI requests must be async and cached.** Never block the UI or core API responses.
-4. **Token efficiency is mandatory.** Every token sent must justify operational value.
-5. **AI narratives inherit confidence levels.** Low-confidence signals = Probabilistic language.
-6. **Frontend must expose degraded AI states.** No generic spinners; show the state machine.
-7. **QA must simulate provider instability.** Hostile audit of rate limits and outages.
-8. **Cached summaries are preferred.** Avoid regenerating identical narratives.
-9. **AI summarizes structured signals, not raw filings.** Preprocessing is mandatory.
-10. **Failure handling over happy-path.** Resilient degradation is the primary KPI.
+1. **FAST agents optimize speed, not architecture.** They handle UI, glue logic, and scaffolding.
+2. **PRO agents own integration stability and contracts.** They own infra, backend, and orchestration.
+3. **HEAVY agents own adversarial validation and gating.** They perform complex reasoning and audits.
+4. **Parallelism must be dependency-aware.** No agent may redefine contracts or bypass cache.
+5. **QA runs continuously, not only at release.** HEAVY agents act as hostile auditors.
+6. **AI systems are unreliable infrastructure.** Resilient degradation is the primary design pattern.
+7. **Frontend never depends directly on AI providers.** Internal APIs and cache are mandatory.
+8. **Cached intelligence is the default state.** Synchronous AI waits are forbidden.
+9. **Degraded-state UX is mandatory.** The UI must report specific AI statuses (QUEUED, DEGRADED, etc.).
+10. **No feature is complete without resilience validation.** Production gating requires HEAVY sign-off.
