@@ -15,6 +15,19 @@ class CustomEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super(CustomEncoder, self).default(obj)
 
+    def encode(self, obj):
+        """Override encode to sanitize NaN and Inf."""
+        def sanitize(o):
+            if isinstance(o, float):
+                if o != o: return 0.0 # NaN -> 0.0
+                if o == float('inf') or o == float('-inf'): return 0.0 # Inf -> 0.0
+            elif isinstance(o, dict):
+                return {k: sanitize(v) for k, v in o.items()}
+            elif isinstance(o, list):
+                return [sanitize(i) for i in o]
+            return o
+        return super().encode(sanitize(obj))
+
 try:
     redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     logger.info(f"Redis connected at {settings.REDIS_URL}")

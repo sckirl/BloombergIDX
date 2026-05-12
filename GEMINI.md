@@ -259,13 +259,24 @@ REQUIRED PM OUTPUTS:
 8. **Operational Finality:** Features are only complete after verification, QA sign-off, and telemetry validation.
 9. **Narrative Caution:** AI narratives must never exceed the certainty of the underlying data. Use conditional language for weak signals.
 10. **Observability First:** Observability is a core product capability and part of the feature definition.
-11. **Intelligence Density:** Dense, actionable intelligence is prioritized over feature count or whitespace.
-12. **Stabilization Windows:** Integration stabilization windows are mandatory in parallel execution systems (e.g., Day 6).
-13. **Signal Truth Hierarchy:** Maintain an explicit hierarchy (Filings -> Broker Flow -> Inference).
-14. **Entropy Reduction:** Every orchestration layer must reduce system entropy, not create it.
-15. **Verified Throughput:** The PM’s responsibility is maximizing verified throughput. No agent merges directly to main.
+11. **Standardized AI Benchmarks:**
+    - **Input Target:** 1,200 - 1,800 chars (Max 2,500).
+    - **Output Target:** 200 - 350 chars (Max 500).
+    - **Reasoning Budget:** 512 - 1,024 (Zero waste).
+12. **Anti-Phantom Mandate:** No feature is "Done" until the end-to-end data pipeline is verified. UI shells without backend intelligence are classified as defects, not progress.
+13. **Narrative Integrity:** AI narratives must explicitly inherit the `confidence_score`. High-speed "Bloomberg Terminal" style (Dense, filler-free) is the standard.
+14. **Stabilization Windows:** Integration stabilization windows are mandatory in parallel execution systems (e.g., Day 6).
 
-### MODEL ORCHESTRATION RULES (Institutional Mandate)
+### ENGINEERING STANDARDS & STABILITY MANDATE
+
+1. **Stability First (MANDATORY):** If a function or module has passed QA and is in a stable state, **DO NOT CHANGE IT** unless strictly required for a critical bug fix or a mandatory contract update. 
+2. **Regression Prevention:** New features must be implemented via composition or separate modules rather than modifying stable core logic. Modification of stable code is the primary cause of system-wide failures.
+3. **Institutional Data Quality:** Every data extraction pass must meet Bloomberg-grade precision. Check every menu, every field, and every aggregation before marking a function as "Done".
+
+### NEGATIVE MEMORY (DO NOT REPEAT)
+- **Migration Drift:** Never add columns to SQLAlchemy models without immediately executing a schema migration in the production/docker environment. This caused the "Disappearing Data" crisis of May 11, 2026.
+- **Phantom Implementation:** Never report a feature as "Done" if it only contains UI shells or hardcoded mock responses. End-to-end data flow must be verified.
+- **Synchronous AI:** Never allow the AI layer to block the main terminal UI or core API responsiveness.
 
 1. **FAST agents optimize speed, not architecture.** They handle UI, glue logic, and scaffolding.
 2. **PRO agents own integration stability and contracts.** They own infra, backend, and orchestration.

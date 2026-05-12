@@ -46,11 +46,11 @@ interface AbsorptionData {
 
 // --- Components ---
 
-const Sidebar = ({ onNav, activeView }: { onNav: (view: string) => void, activeView: string }) => (
+const Sidebar = ({ onNav, activeView, isScraping }: { onNav: (view: string) => void, activeView: string, isScraping: boolean }) => (
   <aside className="w-[200px] border-r border-border-custom bg-black flex flex-col z-20">
     <div className="p-4 border-b border-border-custom flex items-center gap-2">
       <div className="w-5 h-5 bg-acc rounded-sm"></div>
-      <span className="font-bold text-xs tracking-tighter">IDX INSIDER</span>
+      <span className="font-bold text-[10px] tracking-tighter">IDX INSIDER</span>
     </div>
     <nav className="flex-1 p-2 space-y-1">
       {[
@@ -73,13 +73,18 @@ const Sidebar = ({ onNav, activeView }: { onNav: (view: string) => void, activeV
       ))}
     </nav>
     <div className="p-4 border-t border-border-custom">
-      <div className="text-[9px] text-acc2 font-bold animate-pulse">● LIVE CONNECTED</div>
+      {isScraping && (
+        <div className="text-[9px] text-acc font-bold animate-pulse mb-2 uppercase">
+          [!] SCRAPING_ENGINE_ACTIVE
+        </div>
+      )}
+      <div className="text-[9px] text-acc2 font-bold">● LIVE CONNECTED</div>
       <div className="text-[8px] text-[#666] mt-1">GKE-FREE-01 // SG-1</div>
     </div>
   </aside>
 );
 
-const SignalFeed = () => {
+const SignalFeed = ({ isScraping }: { isScraping: boolean }) => {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +117,9 @@ const SignalFeed = () => {
         {loading ? (
           <div className="text-[10px] text-acc/50 animate-pulse p-2">SCANNING FOR CLUSTERS...</div>
         ) : signals.length === 0 ? (
-          <div className="text-[10px] text-[#444] p-2 text-center mt-10 italic">NO ACTIVE CLUSTERS DETECTED</div>
+          <div className="text-[10px] text-[#444] p-2 text-center mt-10 italic">
+            {isScraping ? "SCRAPING IN PROGRESS..." : "NO ACTIVE CLUSTERS DETECTED"}
+          </div>
         ) : signals.map((s, i) => (
           <div key={i} className="p-2 border-l-2 border-acc bg-acc/5">
             <div className="flex justify-between items-start mb-1">
@@ -130,9 +137,10 @@ const SignalFeed = () => {
   );
 };
 
-const InstitutionalDrawer = ({ ticker, onClose }: { ticker: string, onClose: () => void }) => {
+const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: string, transactionId?: number, onClose: () => void }) => {
   const [priceMap, setPriceMap] = useState<PriceLevel[]>([]);
   const [absorption, setAbsorption] = useState<AbsorptionData | null>(null);
+  const [narrative, setNarrative] = useState<{state: string, text: string} | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -155,11 +163,86 @@ const InstitutionalDrawer = ({ ticker, onClose }: { ticker: string, onClose: () 
     fetchData();
   }, [ticker]);
 
+  const fetchNarrative = useCallback(async () => {
+    if (!transactionId) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/insider/narrative/${transactionId}`);
+      
+      if (res.ok) {
+        const data = await res.json();
+        setNarrative(data);
+        if (data.state === 'QUEUED' || data.state === 'PROCESSING') {
+          setTimeout(fetchNarrative, 3000);
+        }
+      } else if (res.status === 429) {
+        setNarrative({ state: 'RATE_LIMITED', text: 'AI Capacity reached.' });
+      } else {
+        setNarrative({ state: 'DEGRADED', text: 'AI Narrative service temporarily degraded.' });
+      }
+    } catch (e) {
+      setNarrative({ state: 'DEGRADED', text: 'Connection to AI service lost.' });
+    }
+  }, [transactionId]);
+
+  useEffect(() => {
+    fetchNarrative();
+  }, [fetchNarrative]);
+
+  const renderNarrative = () => {
+    if (!narrative) return <div className="text-[10px] animate-pulse">INITIATING AI CHANNEL...</div>;
+
+    switch (narrative.state) {
+      case 'QUEUED':
+      case 'PROCESSING':
+        return (
+          <div className="space-y-2">
+            <div className="h-2 bg-acc/20 animate-pulse w-full"></div>
+            <div className="h-2 bg-acc/20 animate-pulse w-3/4"></div>
+            <div className="text-[8px] text-acc/60 font-bold animate-pulse uppercase">DECRYPTING LEDGER... [{narrative.state}]</div>
+          </div>
+        );
+      case 'SUCCESS':
+        return (
+          <p className="text-[10px] leading-relaxed text-[#999] font-mono">
+            {narrative.text}
+          </p>
+        );
+      case 'FAILED_RETRYABLE':
+      case 'TIMEOUT':
+        return (
+          <div className="space-y-2">
+            <p className="text-[10px] text-acc3 italic">AI Analysis timed out or failed temporarily.</p>
+            <button 
+               onClick={() => fetchNarrative()}
+               className="text-[9px] bg-acc3 text-black px-2 py-0.5 font-bold uppercase hover:bg-white transition-colors"
+            >
+              Retry Connection
+            </button>
+          </div>
+        );
+      case 'DEGRADED':
+      case 'RATE_LIMITED':
+        return (
+          <div className="p-2 border border-acc3/30 bg-acc3/5">
+             <p className="text-[10px] text-acc3 font-bold uppercase tracking-tighter">AI NARRATIVE TEMPORARILY UNAVAILABLE - PROVIDER LIMITS</p>
+             <p className="text-[8px] text-acc3/60 mt-1 uppercase">NVIDIA NIM capacity exceeded or configuration missing.</p>
+          </div>
+        );
+      case 'FAILED_FINAL':
+        return <p className="text-[10px] text-acc3 font-bold uppercase">AI NARRATIVE GENERATION FAILED PERMANENTLY.</p>;
+      case 'STALE':
+        return <p className="text-[10px] text-[#666] font-bold uppercase italic">NARRATIVE STALE. RE-SCANNING...</p>;
+      default:
+        return <p className="text-[10px] text-[#999] font-mono">{narrative.text || 'NO DATA'}</p>;
+    }
+  };
+
   return (
     <div className="absolute inset-y-0 right-0 w-[400px] bg-black border-l border-acc shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-30 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="p-3 bg-acc flex justify-between items-center">
-        <span className="text-black font-black text-xs">SECURITY_INTEL: {ticker}</span>
-        <button onClick={onClose} className="text-black font-bold text-xs hover:bg-black/10 px-1">✕</button>
+      <div className="p-2 bg-acc flex justify-between items-center">
+        <span className="text-black font-black text-[10px] tracking-tighter">SECURITY_INTEL: {ticker}</span>
+        <button onClick={onClose} className="text-black font-bold text-[10px] hover:bg-black/10 px-1">✕</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -174,13 +257,13 @@ const InstitutionalDrawer = ({ ticker, onClose }: { ticker: string, onClose: () 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="terminal-panel p-2">
                     <div className="text-[8px] text-[#666] uppercase">Ratio</div>
-                    <div className={`text-5xl font-black ${absorption.absorption_ratio > 0.1 ? 'text-acc2' : 'text-acc'}`}>
+                    <div className={`text-4xl font-black ${absorption.absorption_ratio > 0.1 ? 'text-acc2' : 'text-acc'}`}>
                       {(absorption.absorption_ratio).toFixed(2)}x
                     </div>
                   </div>
                   <div className="terminal-panel p-2">
                     <div className="text-[8px] text-[#666] uppercase">30D ADV</div>
-                    <div className="text-xs font-bold text-white">{new Intl.NumberFormat('id-ID').format(absorption.adv_30d)}</div>
+                    <div className="text-[10px] font-bold text-white">{new Intl.NumberFormat('id-ID').format(absorption.adv_30d)}</div>
                   </div>
                 </div>
               )}
@@ -211,13 +294,22 @@ const InstitutionalDrawer = ({ ticker, onClose }: { ticker: string, onClose: () 
               </div>
             </section>
 
-            {/* AI Summary Stub */}
-            <section className="terminal-panel p-3 bg-acc/5 border-acc/20">
-              <h3 className="text-[9px] font-black text-acc mb-1 uppercase tracking-widest">NVIDIA_AI_NARRATIVE</h3>
-              <p className="text-[10px] text-[#999] leading-relaxed italic">
-                Detection of stealth accumulation patterns between {priceMap[priceMap.length-1]?.price || 'N/A'} and {priceMap[0]?.price || 'N/A'}. 
-                High conviction cluster detected in the last 30 days. Absorption ratio indicates {absorption?.absorption_ratio && absorption.absorption_ratio > 0.05 ? 'significant' : 'low'} liquidity soak.
-              </p>
+            {/* AI Summary Section */}
+            <section className="terminal-panel p-3 bg-acc/5 border border-acc/20 relative overflow-hidden">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-[9px] font-black text-acc uppercase tracking-widest">NVIDIA_AI_NARRATIVE</h3>
+                {narrative && (
+                  <span className={`text-[7px] px-1 font-bold ${
+                    narrative.state === 'SUCCESS' ? 'bg-acc2 text-black' : 
+                    narrative.state === 'RATE_LIMITED' || narrative.state === 'DEGRADED' || narrative.state.includes('FAILED') ? 'bg-acc3 text-black' : 
+                    'bg-acc text-black animate-pulse'
+                  }`}>
+                    {narrative.state}
+                  </span>
+                )}
+              </div>
+              
+              {renderNarrative()}
             </section>
           </>
         )}
@@ -248,29 +340,38 @@ const Clock = () => {
   );
 };
 
-const QuickStart = ({ onCommand }: { onCommand: (cmd: string) => void }) => (
+const QuickStart = ({ onCommand, isScraping }: { onCommand: (cmd: string) => void, isScraping: boolean }) => (
   <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-acc/20 rounded-lg m-8 bg-acc/5">
-    <div className="text-acc font-black text-xl mb-2 tracking-tighter">QUICK START TERMINAL</div>
-    <p className="text-[#888] text-[10px] mb-8 max-w-md text-center">
-      Terminal initialized. No data matching current filters. 
-      Use the command bar or select a preset below to begin analysis.
-    </p>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
-      {[
-        { label: 'INSIDER BBCA', desc: 'Deep dive into Bank Central Asia', cmd: 'INSIDER BBCA' },
-        { label: 'FLOW GOTO', desc: 'Analyze GoTo Gojek Tokopedia flow', cmd: 'FLOW GOTO' },
-        { label: 'HELP', desc: 'List all available terminal commands', cmd: 'HELP' },
-      ].map((item) => (
-        <button
-          key={item.label}
-          onClick={() => onCommand(item.cmd)}
-          className="p-4 border border-acc/30 bg-black hover:bg-acc hover:text-black transition-all group text-left"
-        >
-          <div className="text-xs font-black mb-1">{item.label}</div>
-          <div className="text-[9px] opacity-60 group-hover:opacity-100">{item.desc}</div>
-        </button>
-      ))}
+    <div className="text-acc font-black text-xl mb-2 tracking-tighter">
+      {isScraping ? "SCRAPING_IN_PROGRESS" : "QUICK START TERMINAL"}
     </div>
+    <p className="text-[#888] text-[10px] mb-8 max-w-md text-center uppercase">
+      {isScraping ? "THE ENGINE IS CURRENTLY DECRYPTING NEW FILINGS FROM THE IDX EXCHANGE. DATA DENSITY WILL INCREASE SHORTLY." : 
+      "Terminal initialized. No data matching current filters. Use the command bar or select a preset below to begin analysis."}
+    </p>
+    {!isScraping && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+        {[
+          { label: 'INSIDER BBCA', desc: 'Deep dive into Bank Central Asia', cmd: 'INSIDER BBCA' },
+          { label: 'FLOW GOTO', desc: 'Analyze GoTo Gojek Tokopedia flow', cmd: 'FLOW GOTO' },
+          { label: 'HELP', desc: 'List all available terminal commands', cmd: 'HELP' },
+        ].map((item) => (
+          <button
+            key={item.label}
+            onClick={() => onCommand(item.cmd)}
+            className="p-4 border border-acc/30 bg-black hover:bg-acc hover:text-black transition-all group text-left"
+          >
+            <div className="text-[10px] font-black mb-1">{item.label}</div>
+            <div className="text-[9px] opacity-60 group-hover:opacity-100">{item.desc}</div>
+          </button>
+        ))}
+      </div>
+    )}
+    {isScraping && (
+      <div className="text-acc animate-pulse font-mono text-[10px] tracking-widest border border-acc px-4 py-2">
+        CONNECTING TO EXCHANGE LEDGER...
+      </div>
+    )}
   </div>
 );
 
@@ -281,10 +382,30 @@ export default function Home() {
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   const [activeView, setActiveView] = useState('INSIDER');
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
   const [commandValue, setCommandValue] = useState('');
+  const [isScraping, setIsScraping] = useState(false);
   const [marketData, setMarketData] = useState({ ihsg: 7234.12, ihsgChg: 0.12, usdidr: 15670, usdidrChg: -0.05 });
 
   const footerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkScraper = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${apiUrl}/insider/scraper-status`);
+        if (res.ok) {
+          const status = await res.json();
+          setIsScraping(status.is_running);
+        }
+      } catch (e) {
+        console.error("Scraper status check failed", e);
+      }
+    };
+    checkScraper();
+    const interval = setInterval(checkScraper, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchData = useCallback(async (ticker?: string) => {
     setLoading(true);
@@ -431,7 +552,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <Sidebar onNav={setActiveView} activeView={activeView} />
+        <Sidebar onNav={setActiveView} activeView={activeView} isScraping={isScraping} />
         
         <main className="flex-1 flex flex-col bg-black border-r border-border-custom relative">
           <div className="h-6 bg-surface border-b border-border-custom flex items-center px-2 justify-between z-10">
@@ -454,7 +575,7 @@ export default function Home() {
               <div className="p-4 text-acc3 text-xs font-bold">ERROR: {error}</div>
             ) : activeView === 'INSIDER' ? (
               data.length === 0 ? (
-                <QuickStart onCommand={runTerminalCommand} />
+                <QuickStart onCommand={runTerminalCommand} isScraping={isScraping} />
               ) : (
                 <table className="w-full dense-table relative">
                   <thead className="sticky top-0 z-10">
@@ -474,7 +595,7 @@ export default function Home() {
                     {data.map((row) => (
                       <tr 
                         key={row.id} 
-                        onClick={() => setSelectedTicker(row.ticker)}
+                        onClick={() => { setSelectedTicker(row.ticker); setSelectedTransactionId(row.id); }}
                         className={`hover:bg-acc/10 cursor-pointer ${selectedTicker === row.ticker ? 'bg-acc/20 border-l-2 border-acc' : ''}`}
                       >
                         <td className="text-[#666]">{row.date}</td>
@@ -520,13 +641,14 @@ export default function Home() {
             {selectedTicker && activeView === 'INSIDER' && (
               <InstitutionalDrawer 
                 ticker={selectedTicker} 
-                onClose={() => setSelectedTicker(null)} 
+                transactionId={selectedTransactionId || undefined} 
+                onClose={() => { setSelectedTicker(null); setSelectedTransactionId(null); }} 
               />
             )}
           </div>
         </main>
 
-        <SignalFeed />
+        <SignalFeed isScraping={isScraping} />
       </div>
 
       <footer className="h-6 bg-acc border-t border-border-custom flex items-center px-1 gap-2 z-40 relative">

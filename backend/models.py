@@ -83,14 +83,30 @@ class InsiderTransaction(Base):
     is_buyback = Column(Boolean, default=False)
     insider_win_rate = Column(Numeric(precision=12, scale=6)) # Success rate percentage
     price_history = Column(Text) # JSON string of last 5 days
+    filing_hash = Column(String(64), index=True)
     date_inferred = Column(Boolean, default=False)
     confidence = Column(Numeric(precision=5, scale=2), default=1.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     stock = relationship("Stock", back_populates="insider_filings")
+    narrative = relationship("Narrative", back_populates="insider_transaction", uselist=False)
 
     def __repr__(self):
         return f"<InsiderTransaction(ticker={self.ticker}, name={self.insider_name}, type={self.transaction_type})>"
+
+class Narrative(Base):
+    __tablename__ = "narratives"
+    id = Column(Integer, primary_key=True, index=True)
+    insider_transaction_id = Column(Integer, ForeignKey("insider_transactions.id"), unique=True, index=True)
+    state = Column(String(30), default="QUEUED") # NarrativeState
+    narrative_text = Column(Text)
+    model_version = Column(String(50))
+    prompt_version = Column(String(50))
+    confidence_score = Column(Numeric(precision=5, scale=2), default=1.0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    insider_transaction = relationship("InsiderTransaction", back_populates="narrative")
 
 class SmartMoneyScore(Base):
     __tablename__ = "smart_money_scores"

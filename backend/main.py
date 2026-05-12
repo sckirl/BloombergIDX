@@ -31,6 +31,8 @@ except Exception as e:
     logger.error(f"Database tables could not be created during startup: {e}", exc_info=True)
 
 app = FastAPI(title="IDX OpenInsider API")
+from .narrative_api import router as narrative_router
+app.include_router(narrative_router)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -103,6 +105,10 @@ def health_check():
 def read_root():
     return {"message": "Welcome to IDX OpenInsider API", "status": "running"}
 
+@app.get("/insider/scraper-status")
+def get_scraper_status():
+    return {"is_running": scraper_lock.locked(), "timestamp": datetime.now()}
+
 @app.get("/insider/scrape")
 async def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = False):
     if scraper_lock.locked():
@@ -112,14 +118,25 @@ async def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = Fa
     return {"message": f"Scraper task (full_year={full_year}) triggered"}
 
 def to_dict(obj):
-    """Convert SQLAlchemy model instance to dict with Decimal -> float conversion."""
+    """Convert SQLAlchemy model instance to dict with Decimal -> float conversion and NaN/Inf sanitation."""
     d = {}
     for column in obj.__table__.columns:
         val = getattr(obj, column.name)
         if isinstance(val, Decimal):
-            d[column.name] = float(val)
+            f_val = float(val)
+            # Bloomberg-grade sanitation: No NaN or Inf after Decimal conversion
+            if f_val != f_val or f_val == float('inf') or f_val == float('-inf'):
+                d[column.name] = 0.0
+            else:
+                d[column.name] = f_val
         elif isinstance(val, (datetime, date)):
             d[column.name] = val.isoformat()
+        elif isinstance(val, float):
+            # Bloomberg-grade sanitation: No NaN or Inf in institutional feed
+            if val != val or val == float('inf') or val == float('-inf'):
+                d[column.name] = 0.0
+            else:
+                d[column.name] = val
         else:
             d[column.name] = val
     return d
@@ -440,7 +457,7 @@ def get_heatmap(db: Session = Depends(get_db)):
     cached = get_cache(cache_key)
     if cached: return cached
 
-    from sqlalchemy import func
+    from sqlalchemy import func, case
     from .models import Stock, InsiderTransaction
     
     # Last 30 days of insider activity
@@ -451,7 +468,7 @@ def get_heatmap(db: Session = Depends(get_db)):
     sector_flow = db.query(
         Stock.sector,
         func.sum(
-            func.case(
+            case(
                 (InsiderTransaction.transaction_type == "BUY", InsiderTransaction.value),
                 (InsiderTransaction.transaction_type == "SELL", -InsiderTransaction.value),
                 else_=0

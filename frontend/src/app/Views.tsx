@@ -36,55 +36,55 @@ export const FlowView = ({ ticker }: { ticker: string | null }) => {
   if (loading) return <div className="p-10 text-acc animate-pulse text-[10px]">SCANNING BROKER LEDGERS...</div>;
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex justify-between items-end border-b border-acc pb-2">
+    <div className="p-2 space-y-4 font-mono">
+      <div className="flex justify-between items-end border-b border-acc pb-1">
         <div>
-          <h2 className="text-2xl font-black text-white">{ticker}</h2>
-          <p className="text-[10px] text-acc">INSTITUTIONAL BROKER FLOW ANALYSIS (30D)</p>
+          <h2 className="text-sm font-black text-white">{ticker}</h2>
+          <p className="text-[10px] text-acc uppercase tracking-tighter">Institutional Broker Flow (30D)</p>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-[#666]">CONCENTRATION SCORE</div>
-          <div className={`text-2xl font-black ${data?.concentration > 0.5 ? 'text-acc2' : 'text-acc'}`}>
+          <div className="text-[9px] text-[#666] uppercase">Concentration</div>
+          <div className={`text-xl font-black ${data?.concentration > 0.5 ? 'text-acc2' : 'text-acc'}`}>
             {data ? (data.concentration * 100).toFixed(0) : '0'}%
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="terminal-panel p-4 bg-acc/5">
-          <h3 className="text-[10px] font-bold text-acc mb-4 uppercase">Top Accumulating Brokers</h3>
-          <table className="w-full text-[10px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="terminal-panel p-2 bg-acc/5">
+          <h3 className="text-[10px] font-bold text-acc mb-2 uppercase border-b border-acc/20 pb-1">Top Accumulating Brokers</h3>
+          <table className="w-full text-[10px] tracking-tighter">
             <thead>
-              <tr className="text-[#666] border-b border-border-custom">
-                <th className="text-left pb-1">BROKER</th>
-                <th className="text-right pb-1">NET VALUE (IDR)</th>
+              <tr className="text-[#666] border-b border-border-custom text-left">
+                <th className="pb-1 font-bold">BROKER</th>
+                <th className="text-right pb-1 font-bold">NET VALUE (IDR)</th>
               </tr>
             </thead>
             <tbody>
               {data?.top_buyers?.map((row: any, i: number) => (
                 <tr key={i} className="border-b border-border-custom/50">
-                  <td className="py-2 text-white font-bold">{row.broker_code} <span className="text-[8px] font-normal text-[#666]">{row.broker_name?.substring(0, 15)}</span></td>
-                  <td className="py-2 text-right text-acc2 font-mono">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(row.net_value)}</td>
+                  <td className="py-1 text-white font-bold">{row.broker_code} <span className="text-[8px] font-normal text-[#666]">{row.broker_name?.substring(0, 12)}</span></td>
+                  <td className="py-1 text-right text-acc2 font-bold">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(row.net_value)}</td>
                 </tr>
               )) || <tr><td colSpan={2} className="py-4 text-center text-[#444]">NO DATA</td></tr>}
             </tbody>
           </table>
         </div>
 
-        <div className="terminal-panel p-4 bg-acc/5">
-          <h3 className="text-[10px] font-bold text-acc mb-4 uppercase">Top Distributing Brokers</h3>
-          <table className="w-full text-[10px]">
+        <div className="terminal-panel p-2 bg-acc/5">
+          <h3 className="text-[10px] font-bold text-acc mb-2 uppercase border-b border-acc/20 pb-1">Top Distributing Brokers</h3>
+          <table className="w-full text-[10px] tracking-tighter">
             <thead>
-              <tr className="text-[#666] border-b border-border-custom">
-                <th className="text-left pb-1">BROKER</th>
-                <th className="text-right pb-1">NET VALUE (IDR)</th>
+              <tr className="text-[#666] border-b border-border-custom text-left">
+                <th className="pb-1 font-bold">BROKER</th>
+                <th className="text-right pb-1 font-bold">NET VALUE (IDR)</th>
               </tr>
             </thead>
             <tbody>
               {data?.top_sellers?.map((row: any, i: number) => (
                 <tr key={i} className="border-b border-border-custom/50">
-                  <td className="py-2 text-white font-bold">{row.broker_code} <span className="text-[8px] font-normal text-[#666]">{row.broker_name?.substring(0, 15)}</span></td>
-                  <td className="py-2 text-right text-acc3 font-mono">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Math.abs(row.net_value))}</td>
+                  <td className="py-1 text-white font-bold">{row.broker_code} <span className="text-[8px] font-normal text-[#666]">{row.broker_name?.substring(0, 12)}</span></td>
+                  <td className="py-1 text-right text-acc3 font-bold">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(Math.abs(row.net_value))}</td>
                 </tr>
               )) || <tr><td colSpan={2} className="py-4 text-center text-[#444]">NO DATA</td></tr>}
             </tbody>
@@ -92,20 +92,19 @@ export const FlowView = ({ ticker }: { ticker: string | null }) => {
         </div>
       </div>
 
-      <div className="terminal-panel p-4 bg-black border border-acc/20">
-         <h3 className="text-[10px] font-bold text-acc mb-2 uppercase">Flow Summary</h3>
-         <div className="grid grid-cols-3 gap-4">
+      <div className="terminal-panel p-2 bg-black border border-acc/20">
+         <div className="grid grid-cols-3 gap-2">
             <div>
-              <div className="text-[8px] text-[#666]">TOTAL BUY VALUE</div>
-              <div className="text-xs font-bold text-acc2">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(data?.summary?.total_buy_value || 0)}</div>
+              <div className="text-[8px] text-[#666] uppercase">Buy Vol</div>
+              <div className="text-[10px] font-bold text-acc2">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(data?.summary?.total_buy_value || 0)}</div>
             </div>
             <div>
-              <div className="text-[8px] text-[#666]">TOTAL SELL VALUE</div>
-              <div className="text-xs font-bold text-acc3">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(data?.summary?.total_sell_value || 0)}</div>
+              <div className="text-[8px] text-[#666] uppercase">Sell Vol</div>
+              <div className="text-[10px] font-bold text-acc3">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(data?.summary?.total_sell_value || 0)}</div>
             </div>
             <div>
-              <div className="text-[8px] text-[#666]">UNIQUE BROKERS</div>
-              <div className="text-xs font-bold text-white">{data?.summary?.total_brokers || 0}</div>
+              <div className="text-[8px] text-[#666] uppercase">Nodes</div>
+              <div className="text-[10px] font-bold text-white">{data?.summary?.total_brokers || 0}</div>
             </div>
          </div>
       </div>
@@ -136,35 +135,35 @@ export const AnomalyView = () => {
   }, []);
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center gap-2 mb-6">
-        <div className={`w-4 h-4 ${loading ? 'bg-acc animate-pulse' : 'bg-acc3'}`}></div>
-        <h2 className="text-xl font-black text-white tracking-tighter">MARKET ANOMALIES</h2>
+    <div className="p-2 space-y-2 font-mono">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-3 h-3 ${loading ? 'bg-acc animate-pulse' : 'bg-acc3'}`}></div>
+        <h2 className="text-[10px] font-black text-white tracking-widest uppercase">Market Volumetric Anomalies</h2>
       </div>
 
       {loading ? (
         <div className="text-acc text-[10px] animate-pulse">DETECTING VOLUMETRIC SIGMAS...</div>
       ) : anomalies.length === 0 ? (
-        <div className="text-[#444] text-[10px] italic p-10 text-center border border-dashed border-[#222]">NO SIGNIFICANT ANOMALIES DETECTED IN THE LAST 7 DAYS</div>
+        <div className="text-[#444] text-[10px] italic p-10 text-center border border-dashed border-[#222]">NO SIGNIFICANT ANOMALIES DETECTED</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           {anomalies.map((item, i) => (
-            <div key={i} className="terminal-panel p-3 border-l-2 border-acc3 bg-acc3/5">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-lg font-black text-white">{item.ticker}</span>
-                <span className={`text-[8px] px-1 font-bold ${item.anomaly_score > 50 ? 'bg-acc3 text-black' : 'text-acc3 border border-acc3'}`}>
-                  {item.anomaly_score > 50 ? 'CRITICAL' : item.anomaly_score > 20 ? 'HIGH' : 'MED'}
+            <div key={i} className="terminal-panel p-2 border-l-2 border-acc3 bg-acc3/5">
+              <div className="flex justify-between items-start mb-1">
+                <span className="text-sm font-black text-white">{item.ticker}</span>
+                <span className={`text-[7px] px-1 font-bold ${item.anomaly_score > 50 ? 'bg-acc3 text-black' : 'text-acc3 border border-acc3'}`}>
+                  {item.anomaly_score > 50 ? 'CRIT' : item.anomaly_score > 20 ? 'HIGH' : 'MED'}
                 </span>
               </div>
-              <div className="text-[10px] font-bold text-acc3 mb-1">
-                {item.rvol > 3 ? 'Abnormal Volume Spike' : 'Price Action Anomaly'}
+              <div className="text-[9px] font-bold text-acc3 mb-1 truncate">
+                {item.rvol > 3 ? 'VOLUME_SPIKE' : 'PRICE_ANOMALY'}
               </div>
-              <p className="text-[9px] text-[#777] leading-tight mb-3">
-                RVOL: <span className="text-white">{item.rvol.toFixed(2)}x</span> | Price Chg: <span className={item.price_change > 0 ? 'text-acc2' : 'text-acc3'}>{(item.price_change * 100).toFixed(2)}%</span>
-              </p>
-              <div className="flex justify-between items-center text-[8px]">
-                <span className="text-[#555]">ANOMALY_SCORE</span>
-                <span className="text-acc3 font-bold">{item.anomaly_score.toFixed(2)}</span>
+              <div className="text-[9px] text-[#777] leading-tight mb-2 border-t border-white/5 pt-1">
+                RV: <span className="text-white">{item.rvol.toFixed(1)}x</span> | CHG: <span className={item.price_change > 0 ? 'text-acc2' : 'text-acc3'}>{(item.price_change * 100).toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between items-center text-[7px]">
+                <span className="text-[#555]">SIGMA_SCORE</span>
+                <span className="text-acc3 font-bold">{item.anomaly_score.toFixed(1)}</span>
               </div>
             </div>
           ))}
@@ -197,30 +196,30 @@ export const HeatmapView = () => {
   }, []);
 
   return (
-    <div className="p-4 h-full flex flex-col">
-      <h2 className="text-[10px] font-bold text-acc mb-4 uppercase tracking-widest">Sector Accumulation Heatmap (30D)</h2>
+    <div className="p-2 h-full flex flex-col font-mono">
+      <h2 className="text-[10px] font-bold text-acc mb-2 uppercase tracking-widest border-b border-acc/20 pb-1">Sector Accumulation Heatmap (30D)</h2>
       
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-acc text-[10px] animate-pulse">AGGREGATING SECTOR FLOWS...</div>
       ) : data.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-[#444] text-[10px] italic">NO SECTOR ACTIVITY DATA AVAILABLE</div>
       ) : (
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-2 overflow-auto">
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-1 overflow-auto">
           {data.map((s, i) => (
-            <div key={i} className={`border border-border-custom p-3 flex flex-col ${s.net_flow > 0 ? 'bg-acc2/5' : 'bg-acc3/5'}`}>
-              <div className="flex justify-between items-start mb-2">
-                <div className="text-[10px] font-black text-white">{s.sector}</div>
-                <div className={`text-[9px] font-bold ${s.net_flow > 0 ? 'text-acc2' : 'text-acc3'}`}>
+            <div key={i} className={`border border-border-custom p-2 flex flex-col ${s.net_flow > 0 ? 'bg-acc2/5' : 'bg-acc3/5'}`}>
+              <div className="flex justify-between items-start mb-1">
+                <div className="text-[9px] font-black text-white truncate w-24 uppercase">{s.sector}</div>
+                <div className={`text-[8px] font-bold ${s.net_flow > 0 ? 'text-acc2' : 'text-acc3'}`}>
                   {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.net_flow)}
                 </div>
               </div>
-              <div className="flex-1 flex flex-col justify-center items-center py-4 border border-white/5 bg-black/20">
-                <div className="text-xl font-black text-white">{s.top_ticker || 'N/A'}</div>
-                <div className="text-[8px] text-[#666] uppercase">Top Sector Mover</div>
+              <div className="flex-1 flex flex-col justify-center items-center py-2 border border-white/5 bg-black/20">
+                <div className="text-sm font-black text-white tracking-tighter">{s.top_ticker || 'N/A'}</div>
+                <div className="text-[7px] text-[#666] uppercase">Top Mover</div>
               </div>
-              <div className="mt-2 flex justify-between items-center">
-                <span className="text-[8px] text-[#444]">{s.trade_count} TRADES</span>
-                <span className={`text-[8px] font-bold ${s.sentiment === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>{s.sentiment}</span>
+              <div className="mt-1 flex justify-between items-center">
+                <span className="text-[7px] text-[#444]">{s.trade_count} TRADES</span>
+                <span className={`text-[7px] font-bold ${s.sentiment === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>{s.sentiment}</span>
               </div>
             </div>
           ))}

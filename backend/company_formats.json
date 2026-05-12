@@ -1688,5 +1688,19 @@
         "price": 51.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "NAME": {
+        "last_updated": "2026-05-12",
+        "shares": 20260511.0,
+        "price": 72.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "GZCO": {
+        "last_updated": "2026-05-12",
+        "shares": 5000000.0,
+        "price": 194.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }

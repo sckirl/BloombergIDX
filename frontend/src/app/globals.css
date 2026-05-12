@@ -57,9 +57,9 @@ body {
 
 /* Institutional Density */
 .dense-table th {
-  @apply text-[10px] uppercase font-bold text-acc bg-black border-b border-border-custom p-1;
+  @apply text-[10px] uppercase font-bold text-acc bg-black border-b border-border-custom p-1 tracking-tighter;
 }
 
 .dense-table td {
-  @apply text-[11px] p-1 border-b border-border-custom font-mono;
+  @apply text-[10px] p-1 border-b border-border-custom font-mono tracking-tighter;
 }
