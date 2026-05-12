@@ -20,6 +20,7 @@ from .utils import (
     get_30d_adv, 
     get_insider_stats_for_absorption
 )
+from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
 
 import os
 
@@ -116,6 +117,32 @@ async def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = Fa
     
     background_tasks.add_task(run_scraper_async, full_year=full_year)
     return {"message": f"Scraper task (full_year={full_year}) triggered"}
+
+@app.get("/insider/enrich")
+async def trigger_enrich(background_tasks: BackgroundTasks):
+    """
+    Triggers market metadata enrichment, price history fetching, 
+    and synthetic broker flow generation.
+    """
+    def run_enrichment():
+        db_session = SessionLocal()
+        try:
+            logger.info("Starting background enrichment process...")
+            enrich_stock_metadata(db_session)
+            fetch_market_history(db_session)
+            generate_broker_flow_proxy(db_session)
+            
+            # Invalidate caches
+            invalidate_cache("market_heatmap")
+            invalidate_cache("market_anomalies")
+            logger.info("Background enrichment process completed.")
+        except Exception as e:
+            logger.error(f"Enrichment process failed: {e}", exc_info=True)
+        finally:
+            db_session.close()
+
+    background_tasks.add_task(run_enrichment)
+    return {"message": "Market enrichment tasks triggered in background"}
 
 def to_dict(obj):
     """Convert SQLAlchemy model instance to dict with Decimal -> float conversion and NaN/Inf sanitation."""
@@ -487,7 +514,7 @@ def get_heatmap(db: Session = Depends(get_db)):
         top_stock = db.query(
             Stock.ticker,
             func.sum(
-                func.case(
+                case(
                     (InsiderTransaction.transaction_type == "BUY", InsiderTransaction.value),
                     (InsiderTransaction.transaction_type == "SELL", -InsiderTransaction.value),
                     else_=0
@@ -509,3 +536,25 @@ def get_heatmap(db: Session = Depends(get_db)):
     heatmap.sort(key=lambda x: abs(x["net_flow"]), reverse=True)
     set_cache(cache_key, heatmap, ttl=900)
     return heatmap
+
+@app.get("/insider/enrich")
+async def trigger_enrichment(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Triggers market data enrichment: metadata, history, and broker flow proxies.
+    """
+    from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
+    
+    def run_enrichment():
+        db_session = SessionLocal()
+        try:
+            enrich_stock_metadata(db_session)
+            fetch_market_history(db_session)
+            generate_broker_flow_proxy(db_session)
+            logger.info("Market enrichment background task completed.")
+        except Exception as e:
+            logger.error(f"Enrichment background task failed: {e}")
+        finally:
+            db_session.close()
+
+    background_tasks.add_task(run_enrichment)
+    return {"message": "Market enrichment task triggered"}

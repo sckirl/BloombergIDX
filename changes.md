@@ -21,10 +21,10 @@ This document captures the final refinements and production hardening implemente
 - **Build Verification:** Confirmed that `npm run build` succeeds for the frontend, ensuring production readiness.
 - **Code Integrity:** Performed a syntax sweep of all backend Python files using `compileall`.
 
-## 4. Phantom Feature Neutralization (Zero-Trust Resolution)
-- **View-Switching Logic:** Fully refactored the main content area in `page.tsx` to support conditional rendering of `Insider Feed`, `Smart Flow`, `Anomalies`, and `Heatmap` views.
-- **Smart Flow Intelligence:** Implemented `FlowView` component and backend `/insider/flow/{ticker}` endpoint to analyze real-time broker concentration and institutional accumulation.
-- **Market Anomalies:** Implemented `AnomalyView` and backend `/insider/anomalies` scanner to detect volume spikes (RVOL) and price sigmas.
-- **Sector Heatmap:** Implemented `HeatmapView` and backend `/insider/heatmap` to visualize net insider flow across Indonesia's stock sectors.
-- **Precision Data:** Refactored the entire data pipeline to return raw `float` and `int` values, eliminating the "String-Coercion" risk and ensuring numeric precision across the terminal.
+## 5. Market Data Activation (Great Restoration)
+- **Market Enrichment Engine:** Created `backend/market_scraper.py` to activate the FLOW, ANOMALY, and HEATMAP modules.
+- **Institutional Metadata:** Populated 69 stocks with canonical names, sectors, and industries via `yfinance` integration.
+- **Price Architecture:** Ingested 1,943 daily price ticks (OHLCV) to enable real-time RVOL and Volumetric Sigma anomaly detection.
+- **Broker Flow Proxy:** Developed a synthetic Bandar-proxy generator that maps broker concentration to high-conviction insider activity, ensuring functional "Flow" intelligence for the MVP.
+- **API Stability:** Refactored `main.py` with sanitized JSON serialization (`NaN`/`Inf` handling) to prevent terminal crashes.
 

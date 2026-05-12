@@ -121,7 +121,7 @@ def extract_transaction_date(text: str) -> Optional[datetime.date]:
             except: pass
     return None
 
-def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -> List[Dict[str, Any]]:
+def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str, issuer_name_api: str = "") -> List[Dict[str, Any]]:
     """
     ULTRA-FLEXIBLE PARSER: Specifically tuned for IDX PDF patterns.
     Handles various Indonesian reporting styles and fallbacks.
@@ -276,7 +276,7 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
 
         transactions.append({
             "ticker": ticker,
-            "issuer_name": "",
+            "issuer_name": issuer_name_api,
             "insider_name": insider_name,
             "role": role, 
             "transaction_type": t_type,
@@ -297,10 +297,10 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str) -
 
 from .cache import invalidate_cache
 
-def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
+def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str, issuer_name: str = ""):
     db = SessionLocal()
     try:
-        parsed = parse_pdf_content(pdf_bytes, url, pub_date)
+        parsed = parse_pdf_content(pdf_bytes, url, pub_date, issuer_name)
         is_buyback = "Pembelian Kembali" in (title or "")
         
         added = 0
@@ -313,9 +313,11 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str):
                 stock = db.query(Stock).filter(Stock.ticker == ticker).first()
                 if not stock:
                     # Create stock if it doesn't exist
-                    stock = Stock(ticker=ticker, name=f"Company {ticker}")
+                    stock = Stock(ticker=ticker, name=issuer_name or f"Company {ticker}")
                     db.add(stock)
                     db.flush() # Get the ID
+                elif issuer_name and (not stock.name or stock.name.startswith("Company ")):
+                    stock.name = issuer_name
             
             t_data["stock_id"] = stock.id
 
@@ -396,6 +398,7 @@ def run_scraper(full_year=False):
                 for item in all_items:
                     pub_date = item.get("PublishedDate") or item.get("pengumuman", {}).get("TglPengumuman")
                     title = item.get("Title") or item.get("pengumuman", {}).get("JudulPengumuman")
+                    issuer_name = item.get("IssuerName") or item.get("NamaEmiten") or ""
                     attachments = item.get("Attachments") or item.get("attachments") or []
                     
                     for att in attachments:
@@ -418,7 +421,7 @@ def run_scraper(full_year=False):
                             b64_pdf = page.evaluate(b64_script)
                             pdf_bytes = base64.b64decode(b64_pdf)
                             
-                            futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title))
+                            futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title, issuer_name))
                         except Exception as e:
                             logger.error(f"  - Error fetching {url}: {e}")
                         

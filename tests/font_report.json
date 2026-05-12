@@ -1,0 +1,18 @@
+PASS (0) FAIL (1)
+
+1. Font size audit
+   Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+   
+   Expected: [32m0[39m
+   Received: [31m116[39m
+   
+     26 |   console.log(JSON.stringify(elements, null, 2));
+     27 |   
+   > 28 |   expect(elements.length).toBe(0);
+        |                           ^
+     29 | });
+     30 |
+       at /Users/alvin/CodeProjects/BloombergIDX/tests/font_audit.spec.ts:28:27
+
+Time: 1084ms
+[full output: ~/Library/Application Support/rtk/tee/1778562066_playwright.log]

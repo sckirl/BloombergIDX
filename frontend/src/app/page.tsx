@@ -301,8 +301,8 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
                 {narrative && (
                   <span className={`text-[7px] px-1 font-bold ${
                     narrative.state === 'SUCCESS' ? 'bg-acc2 text-black' : 
-                    narrative.state === 'RATE_LIMITED' || narrative.state === 'DEGRADED' || narrative.state.includes('FAILED') ? 'bg-acc3 text-black' : 
-                    'bg-acc text-black animate-pulse'
+                    narrative.state === 'QUEUED' || narrative.state === 'PROCESSING' ? 'bg-acc text-black animate-pulse' :
+                    'bg-acc3 text-black'
                   }`}>
                     {narrative.state}
                   </span>
@@ -340,16 +340,17 @@ const Clock = () => {
   );
 };
 
-const QuickStart = ({ onCommand, isScraping }: { onCommand: (cmd: string) => void, isScraping: boolean }) => (
+const QuickStart = ({ onCommand, isScraping, ticker }: { onCommand: (cmd: string) => void, isScraping: boolean, ticker?: string | null }) => (
   <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-acc/20 rounded-lg m-8 bg-acc/5">
     <div className="text-acc font-black text-xl mb-2 tracking-tighter">
-      {isScraping ? "SCRAPING_IN_PROGRESS" : "QUICK START TERMINAL"}
+      {ticker ? "SEARCHING EXCHANGE LEDGER..." : isScraping ? "SCRAPING_IN_PROGRESS" : "QUICK START TERMINAL"}
     </div>
     <p className="text-[#888] text-[10px] mb-8 max-w-md text-center uppercase">
-      {isScraping ? "THE ENGINE IS CURRENTLY DECRYPTING NEW FILINGS FROM THE IDX EXCHANGE. DATA DENSITY WILL INCREASE SHORTLY." : 
+      {ticker ? `Connecting to IDX nodes to retrieve asymmetric data for ${ticker}. Analyzing historical filings and real-time ledger entries.` : 
+       isScraping ? "THE ENGINE IS CURRENTLY DECRYPTING NEW FILINGS FROM THE IDX EXCHANGE. DATA DENSITY WILL INCREASE SHORTLY." : 
       "Terminal initialized. No data matching current filters. Use the command bar or select a preset below to begin analysis."}
     </p>
-    {!isScraping && (
+    {(!isScraping && !ticker) && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
         {[
           { label: 'INSIDER BBCA', desc: 'Deep dive into Bank Central Asia', cmd: 'INSIDER BBCA' },
@@ -367,9 +368,9 @@ const QuickStart = ({ onCommand, isScraping }: { onCommand: (cmd: string) => voi
         ))}
       </div>
     )}
-    {isScraping && (
+    {(isScraping || ticker) && (
       <div className="text-acc animate-pulse font-mono text-[10px] tracking-widest border border-acc px-4 py-2">
-        CONNECTING TO EXCHANGE LEDGER...
+        {ticker ? `NODE_SCAN: ${ticker}_LEDGER_QUERY` : "CONNECTING TO EXCHANGE LEDGER..."}
       </div>
     )}
   </div>
@@ -575,7 +576,7 @@ export default function Home() {
               <div className="p-4 text-acc3 text-xs font-bold">ERROR: {error}</div>
             ) : activeView === 'INSIDER' ? (
               data.length === 0 ? (
-                <QuickStart onCommand={runTerminalCommand} isScraping={isScraping} />
+                <QuickStart onCommand={runTerminalCommand} isScraping={isScraping} ticker={selectedTicker} />
               ) : (
                 <table className="w-full dense-table relative">
                   <thead className="sticky top-0 z-10">
