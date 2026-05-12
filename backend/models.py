@@ -14,6 +14,9 @@ class Stock(Base):
     sector = Column(String(100))
     subsector = Column(String(100))
     market_cap = Column(BigInteger)
+    fifty_two_week_high = Column(Numeric(precision=18, scale=4))
+    fifty_two_week_low = Column(Numeric(precision=18, scale=4))
+    avg_volume = Column(BigInteger)
     listing_date = Column(Date)
     is_active = Column(Boolean, default=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -163,4 +166,27 @@ class Signal(Base):
     source_ids = Column(Text) # JSON string of causative records
 
     stock = relationship("Stock", back_populates="signals")
+
+class CorporateEvent(Base):
+    __tablename__ = "corporate_events"
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(50), index=True) # E-IPO, MERGER, ACQUISITION
+    ticker = Column(String(10), nullable=True, index=True)
+    company_name = Column(String(255))
+    event_date = Column(Date)
+    
+    # E-IPO specific
+    underwriter = Column(String(255), nullable=True)
+    offering_price_range = Column(String(100), nullable=True)
+    total_shares = Column(BigInteger, nullable=True)
+    
+    # Merger specific
+    acquirer = Column(String(255), nullable=True)
+    target = Column(String(255), nullable=True)
+    fair_value = Column(Numeric(20, 2), nullable=True)
+    
+    status = Column(String(50)) # BOOKBUILDING, OFFERING, COMPLETED, PROPOSED
+    description = Column(Text, nullable=True)
+    source_url = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
 

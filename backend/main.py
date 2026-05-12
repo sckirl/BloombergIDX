@@ -530,26 +530,94 @@ def get_heatmap(db: Session = Depends(get_db)):
             "net_flow": float(row.net_flow or 0),
             "trade_count": int(row.trade_count or 0),
             "top_ticker": top_stock.ticker if top_stock else None,
-            "sentiment": "BULLISH" if (row.net_flow or 0) > 0 else "BEARISH"
+            "sentiment": "BULLISH" if (row.net_flow or 0) > 0 else "BEARISH",
+            "avg_52w_high": float(db.query(func.avg(Stock.fifty_two_week_high)).filter(Stock.sector == row.sector).scalar() or 0),
+            "avg_52w_low": float(db.query(func.avg(Stock.fifty_two_week_low)).filter(Stock.sector == row.sector).scalar() or 0),
+            "avg_volume": float(db.query(func.avg(Stock.avg_volume)).filter(Stock.sector == row.sector).scalar() or 0),
         })
         
     heatmap.sort(key=lambda x: abs(x["net_flow"]), reverse=True)
     set_cache(cache_key, heatmap, ttl=900)
     return heatmap
 
+@app.get("/insider/watchlist-data")
+def get_watchlist_data(tickers: str, db: Session = Depends(get_db)):
+    """
+    Returns latest market data for a list of tickers.
+    """
+    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not ticker_list:
+        return []
+
+    from .models import Stock, PriceTick
+    
+    result = []
+    for ticker in ticker_list:
+        stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+        if not stock:
+            continue
+            
+        # Get latest tick
+        latest_tick = db.query(PriceTick).filter(PriceTick.stock_id == stock.id).order_by(PriceTick.date.desc()).first()
+        
+        # Get previous tick for change calculation
+        prev_tick = None
+        if latest_tick:
+            prev_tick = db.query(PriceTick).filter(
+                PriceTick.stock_id == stock.id,
+                PriceTick.date < latest_tick.date
+            ).order_by(PriceTick.date.desc()).first()
+
+        # Get insider stats
+        insider_buy_count = db.query(InsiderTransaction).filter(
+            InsiderTransaction.stock_id == stock.id,
+            InsiderTransaction.transaction_type == 'BUY',
+            InsiderTransaction.date >= (datetime.now() - timedelta(days=30)).date()
+        ).count()
+
+        change_pct = 0.0
+        if latest_tick and prev_tick and prev_tick.close > 0:
+            change_pct = float((latest_tick.close - prev_tick.close) / prev_tick.close)
+
+        result.append({
+            "ticker": ticker,
+            "price": float(latest_tick.close) if latest_tick else 0.0,
+            "change_pct": float(round(change_pct * 100, 2)),
+            "insider_buy_level": "HIGH" if insider_buy_count > 5 else "MED" if insider_buy_count > 1 else "LOW",
+            "smart_flow": "BULLISH" if insider_buy_count > 2 else "NEUTRAL", # Simplified proxy
+            "signal": "BUY" if insider_buy_count > 3 else "ACCUM" if insider_buy_count > 0 else "WATCH",
+            "fifty_two_week_high": float(stock.fifty_two_week_high or 0),
+            "fifty_two_week_low": float(stock.fifty_two_week_low or 0),
+            "avg_volume": int(stock.avg_volume or 0)
+        })
+        
+    return result
+
+@app.get("/insider/events")
+def get_corporate_events(db: Session = Depends(get_db)):
+    """
+    Returns high-conviction corporate events (E-IPO, Mergers).
+    """
+    from .models import CorporateEvent
+    events = db.query(CorporateEvent).order_by(CorporateEvent.event_date.desc()).all()
+    return events
+
 @app.get("/insider/enrich")
 async def trigger_enrichment(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
-    Triggers market data enrichment: metadata, history, and broker flow proxies.
+    Triggers market data enrichment: metadata, history, broker flow proxies, and events.
     """
     from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
+    from .event_scraper import seed_initial_events
     
     def run_enrichment():
         db_session = SessionLocal()
         try:
+            logger.info("Starting background enrichment process...")
             enrich_stock_metadata(db_session)
             fetch_market_history(db_session)
             generate_broker_flow_proxy(db_session)
+            seed_initial_events() # Uses SessionLocal inside
             logger.info("Market enrichment background task completed.")
         except Exception as e:
             logger.error(f"Enrichment background task failed: {e}")

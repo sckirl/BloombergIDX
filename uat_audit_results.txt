@@ -1,0 +1,9 @@
+Total event cards found: 23
+E-IPO count: 0
+Merger/Acquisition count: 2
+MAPI visible: true
+SMAR visible: true
+Sample Prospectus Link: https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/
+N/A value count: 0
+Found ticker label, testing click...
+Is Insider View after click? false

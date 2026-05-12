@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import CommandPalette from './CommandPalette';
-import { FlowView, AnomalyView, HeatmapView, WatchlistView } from './Views';
+import { FlowView, AnomalyView, HeatmapView, WatchlistView, EventView } from './Views';
 
 // --- Types ---
 interface InsiderTransaction {
@@ -58,6 +58,7 @@ const Sidebar = ({ onNav, activeView, isScraping }: { onNav: (view: string) => v
         { id: 'FLOW', label: 'SMART FLOW', cmd: 'FLOW' },
         { id: 'ANOMALY', label: 'ANOMALIES', cmd: 'ANOMALY' },
         { id: 'HEATMAP', label: 'HEATMAP', cmd: 'MAP' },
+        { id: 'EVENTS', label: 'EVENTS (IPO/M&A)', cmd: 'EVENT' },
         { id: 'WATCH', label: 'WATCHLIST', cmd: 'WL' },
       ].map((item) => (
         <button
@@ -456,6 +457,19 @@ export default function Home() {
       setActiveView('ANOMALY');
     } else if (val === 'WL' || val === 'WATCH') {
       setActiveView('WATCH');
+    } else if (val === 'EVENT' || val === 'EVENTS') {
+      setActiveView('EVENTS');
+    } else if (val.startsWith('WL ADD ')) {
+      const parts = val.split(' ');
+      if (parts.length >= 3 && parts[2]) {
+        const t = parts[2].toUpperCase();
+        const wl = JSON.parse(localStorage.getItem('watchlist') || '["BBCA", "GOTO", "TLKM", "ASII"]');
+        if (!wl.includes(t)) {
+          wl.push(t);
+          localStorage.setItem('watchlist', JSON.stringify(wl));
+        }
+        setActiveView('WATCH');
+      }
     } else {
       // Default to ticker search
       setSelectedTicker(val);
@@ -632,9 +646,11 @@ export default function Home() {
             ) : activeView === 'ANOMALY' ? (
               <AnomalyView />
             ) : activeView === 'HEATMAP' ? (
-              <HeatmapView />
+              <HeatmapView onSelectTicker={(t) => { setSelectedTicker(t); setActiveView('INSIDER'); fetchData(t); }} />
+            ) : activeView === 'EVENTS' ? (
+              <EventView onSelectTicker={(t) => { setSelectedTicker(t); setActiveView('INSIDER'); fetchData(t); }} />
             ) : activeView === 'WATCH' ? (
-              <WatchlistView />
+              <WatchlistView onSelectTicker={(t) => { setSelectedTicker(t); setActiveView('INSIDER'); fetchData(t); }} />
             ) : (
               <div className="p-4 text-acc text-[10px]">UNKNOWN VIEW STATE</div>
             )}

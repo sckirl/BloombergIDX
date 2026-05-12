@@ -10,36 +10,64 @@ def migrate():
     engine = create_engine(DATABASE_URL)
     
     with engine.connect() as conn:
-        print("Checking for missing columns in insider_transactions...")
+        print("Checking for missing tables...")
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS corporate_events (
+                id SERIAL PRIMARY KEY,
+                event_type VARCHAR(50),
+                ticker VARCHAR(10),
+                company_name VARCHAR(255),
+                event_date DATE,
+                underwriter VARCHAR(255),
+                offering_price_range VARCHAR(100),
+                total_shares BIGINT,
+                acquirer VARCHAR(255),
+                target VARCHAR(255),
+                fair_value NUMERIC(20, 2),
+                status VARCHAR(50),
+                description TEXT,
+                source_url VARCHAR(500),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        conn.commit()
+        print("Table corporate_events verified.")
+
+        print("Checking for missing columns...")
         
         # Helper to add column if not exists
-        def add_column(col_name, col_type):
+        def add_column(table_name, col_name, col_type):
             try:
                 # Check if column exists
                 res = conn.execute(text(f"""
                     SELECT column_name 
                     FROM information_schema.columns 
-                    WHERE table_name='insider_transactions' AND column_name='{col_name}';
+                    WHERE table_name='{table_name}' AND column_name='{col_name}';
                 """)).fetchone()
                 
                 if not res:
-                    print(f"Adding column {col_name}...")
-                    conn.execute(text(f"ALTER TABLE insider_transactions ADD COLUMN {col_name} {col_type};"))
+                    print(f"Adding column {col_name} to {table_name}...")
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type};"))
                     conn.commit()
-                    print(f"Successfully added {col_name}.")
+                    print(f"Successfully added {col_name} to {table_name}.")
                 else:
-                    print(f"Column {col_name} already exists.")
+                    print(f"Column {col_name} already exists in {table_name}.")
             except Exception as e:
-                print(f"Error adding {col_name}: {e}")
+                print(f"Error adding {col_name} to {table_name}: {e}")
 
         # List of institutional columns added in Sprint-2
-        add_column("filing_hash", "VARCHAR(64)")
-        add_column("date_inferred", "BOOLEAN DEFAULT FALSE")
-        add_column("confidence", "NUMERIC(5, 2) DEFAULT 1.0")
-        add_column("insider_win_rate", "NUMERIC(12, 6)")
-        add_column("price_history", "TEXT")
-        add_column("is_buyback", "BOOLEAN DEFAULT FALSE")
-        add_column("rvol", "NUMERIC(12, 4)")
+        add_column("insider_transactions", "filing_hash", "VARCHAR(64)")
+        add_column("insider_transactions", "date_inferred", "BOOLEAN DEFAULT FALSE")
+        add_column("insider_transactions", "confidence", "NUMERIC(5, 2) DEFAULT 1.0")
+        add_column("insider_transactions", "insider_win_rate", "NUMERIC(12, 6)")
+        add_column("insider_transactions", "price_history", "TEXT")
+        add_column("insider_transactions", "is_buyback", "BOOLEAN DEFAULT FALSE")
+        add_column("insider_transactions", "rvol", "NUMERIC(12, 4)")
+        
+        # Add columns to stocks table
+        add_column("stocks", "fifty_two_week_high", "NUMERIC(18, 4)")
+        add_column("stocks", "fifty_two_week_low", "NUMERIC(18, 4)")
+        add_column("stocks", "avg_volume", "BIGINT")
         
         print("Schema repair complete.")
 

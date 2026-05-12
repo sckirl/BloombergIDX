@@ -53,16 +53,16 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
         # 1. Immediate state transition
         NarrativeStore.set_state(txn_id, NarrativeState.PROCESSING)
         
-        # 2. Call NVIDIA
+        # 2. Call NVIDIA (nemotron-mini-4b-instruct)
         response = await client.chat.completions.create(
-            model="nvidia/nemotron-3-nano-30b-a3b",
+            model="nvidia/nemotron-mini-4b-instruct",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": context}
             ],
             temperature=0.2,
             top_p=0.7,
-            max_tokens=256,
+            max_tokens=1024,
         )
         
         narrative_text = response.choices[0].message.content.strip()
