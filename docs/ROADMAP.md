@@ -29,4 +29,4 @@
 ## Milestone 5: Final Delivery
 - [ ] PM Approval of all QA Certifications
 - [ ] Production-ready Docker orchestration
-- [ ] Deployment to pukat-master:6969
+- [ ] Deployment to pukat-master:8100

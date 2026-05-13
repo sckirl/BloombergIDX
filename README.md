@@ -45,7 +45,7 @@ Direct deep-linking to Stockbit Insider pages for every transaction, enabling in
 ```bash
 docker compose up -d
 ```
-The dashboard will be available at `http://localhost:6969` (or your Server IP).
+The dashboard will be available at `http://localhost:8100` (or your Server IP).
 
 ## 🧠 Agent Orchestration & Workflow
 
@@ -65,7 +65,7 @@ graph TD
     subgraph User_Interface [Institutional Intelligence Layer]
         User((User/Owner))
         Tailscale[Tailscale / Remote Access]:::infrastructure
-        ProdURL[Next.js Dashboard :6969]
+        ProdURL[Next.js Dashboard :8100]
         TickerDrawer[Institutional Drawer: Map/Absorption]:::pm
         Stockbit[Stockbit Verification]:::external
     end

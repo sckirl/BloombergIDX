@@ -68,6 +68,8 @@ def migrate():
         add_column("stocks", "fifty_two_week_high", "NUMERIC(18, 4)")
         add_column("stocks", "fifty_two_week_low", "NUMERIC(18, 4)")
         add_column("stocks", "avg_volume", "BIGINT")
+        add_column("stocks", "trailing_pe", "NUMERIC(12, 4)")
+        add_column("stocks", "price_to_book", "NUMERIC(12, 4)")
         
         print("Schema repair complete.")
 

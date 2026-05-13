@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const FRONTEND_URL = 'http://localhost:6969';
+const FRONTEND_URL = 'http://localhost:8100';
 const TEST_CASES_PATH = path.resolve(__dirname, '../docs/TEST_CASES.json');
 
 test.describe('Frontend UI Table Rendering', () => {

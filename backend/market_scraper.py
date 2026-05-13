@@ -28,6 +28,8 @@ def enrich_stock_metadata(db: Session):
             stock.sector = ticker_info.get('sector', stock.sector)
             stock.subsector = ticker_info.get('industry', stock.subsector)
             stock.market_cap = ticker_info.get('marketCap', stock.market_cap)
+            stock.trailing_pe = ticker_info.get('trailingPE')
+            stock.price_to_book = ticker_info.get('priceToBook')
             stock.fifty_two_week_high = ticker_info.get('fiftyTwoWeekHigh')
             stock.fifty_two_week_low = ticker_info.get('fiftyTwoWeekLow')
             stock.avg_volume = ticker_info.get('averageVolume')

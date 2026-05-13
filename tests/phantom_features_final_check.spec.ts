@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Phantom Features Final Verification', () => {
-  const BASE_URL = 'http://localhost:6969';
+  const BASE_URL = 'http://localhost:8100';
 
   test.beforeEach(async ({ page }) => {
     await page.goto(BASE_URL);

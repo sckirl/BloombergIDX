@@ -9,7 +9,7 @@ RUN npm install
 COPY . .
 
 # Expose port
-EXPOSE 6969
+EXPOSE 8100
 
 # Start command
 CMD ["npm", "run", "dev"]

@@ -14,6 +14,8 @@ class Stock(Base):
     sector = Column(String(100))
     subsector = Column(String(100))
     market_cap = Column(BigInteger)
+    trailing_pe = Column(Numeric(precision=12, scale=4))
+    price_to_book = Column(Numeric(precision=12, scale=4))
     fifty_two_week_high = Column(Numeric(precision=18, scale=4))
     fifty_two_week_low = Column(Numeric(precision=18, scale=4))
     avg_volume = Column(BigInteger)
@@ -170,23 +172,48 @@ class Signal(Base):
 class CorporateEvent(Base):
     __tablename__ = "corporate_events"
     id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(String(50), index=True) # E-IPO, MERGER, ACQUISITION
+    event_type = Column(String(50), index=True) 
     ticker = Column(String(10), nullable=True, index=True)
     company_name = Column(String(255))
     event_date = Column(Date)
-    
-    # E-IPO specific
+
+    # Financial Metadata (Sprint-3 Enrichment)
     underwriter = Column(String(255), nullable=True)
     offering_price_range = Column(String(100), nullable=True)
     total_shares = Column(BigInteger, nullable=True)
-    
-    # Merger specific
     acquirer = Column(String(255), nullable=True)
     target = Column(String(255), nullable=True)
     fair_value = Column(Numeric(20, 2), nullable=True)
-    
-    status = Column(String(50)) # BOOKBUILDING, OFFERING, COMPLETED, PROPOSED
+
+    # Valuation Multiples (Sprint-3 Logic)
+    pe_multiple = Column(Numeric(10, 2), nullable=True)
+    pb_multiple = Column(Numeric(10, 2), nullable=True)
+    ev_ebitda = Column(Numeric(10, 2), nullable=True)
+    premium_1d = Column(Numeric(8, 4), nullable=True)
+
+    # Temporal State Machine
+    status = Column(String(50)) 
+    event_version = Column(Integer, default=1)
+    source_hash = Column(String(64), unique=True) # PDF/Item hashing
+    state_transition_log = Column(Text) # JSON log of history
+
     description = Column(Text, nullable=True)
+    rationale_ai = Column(Text, nullable=True) # AI Enrichment
     source_url = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.now)
+    last_seen_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=func.now())
+
+    snapshots = relationship("EventSnapshot", back_populates="event")
+
+class EventSnapshot(Base):
+    __tablename__ = "event_snapshots"
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("corporate_events.id"))
+    version = Column(Integer)
+    status = Column(String(50))
+    data_snapshot = Column(Text) # Full JSON dump of state at time
+    snapshot_date = Column(DateTime, default=func.now())
+
+    event = relationship("CorporateEvent", back_populates="snapshots")
+
 

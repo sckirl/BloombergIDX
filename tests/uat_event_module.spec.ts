@@ -5,7 +5,7 @@ test('Corporate Event Intelligence UAT', async ({ page }) => {
   let log = '';
   const appendLog = (msg: string) => { log += msg + '\n'; };
 
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   await expect(page.locator('text=IDX INSIDER')).toBeVisible();
 
   const eventsButton = page.locator('button:has-text("EVENTS (IPO/M&A)")');

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('IDX OpenInsider UAT Audit', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:6969');
+    await page.goto('http://localhost:8100');
   });
 
   test('Visual Fidelity: Institutional Dark Mode & Layout', async ({ page }) => {

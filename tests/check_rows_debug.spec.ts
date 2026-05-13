@@ -4,7 +4,7 @@ test('debug fetch', async ({ page }) => {
   page.on('requestfailed', request => {
     console.log('REQUEST FAILED:', request.url(), request.failure()?.errorText);
   });
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   await page.waitForTimeout(5000);
   const rowCount = await page.locator('table tbody tr').count();
   console.log('UI ROW COUNT:', rowCount);

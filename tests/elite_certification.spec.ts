@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Elite Certification Strike - Sprint 2', () => {
-  const APP_URL = 'http://localhost:6969';
+  const APP_URL = 'http://localhost:8100';
   const API_URL = 'http://localhost:8000';
 
   test('AI Activation: Drawer opens and narrative call is made', async ({ page }) => {

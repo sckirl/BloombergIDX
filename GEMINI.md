@@ -276,15 +276,15 @@ REQUIRED PM OUTPUTS:
 ### NEGATIVE MEMORY (DO NOT REPEAT)
 - **Migration Drift:** Never add columns to SQLAlchemy models without immediately executing a schema migration in the production/docker environment. This caused the "Disappearing Data" crisis of May 11, 2026.
 - **Phantom Implementation:** Never report a feature as "Done" if it only contains UI shells or hardcoded mock responses. End-to-end data flow must be verified.
-- **Synchronous AI:** Never allow the AI layer to block the main terminal UI or core API responsiveness.
+### EVENT INTELLIGENCE RULES (Institutional Mandate)
 
-1. **FAST agents optimize speed, not architecture.** They handle UI, glue logic, and scaffolding.
-2. **PRO agents own integration stability and contracts.** They own infra, backend, and orchestration.
-3. **HEAVY agents own adversarial validation and gating.** They perform complex reasoning and audits.
-4. **Parallelism must be dependency-aware.** No agent may redefine contracts or bypass cache.
-5. **QA runs continuously, not only at release.** HEAVY agents act as hostile auditors.
-6. **AI systems are unreliable infrastructure.** Resilient degradation is the primary design pattern.
-7. **Frontend never depends directly on AI providers.** Internal APIs and cache are mandatory.
-8. **Cached intelligence is the default state.** Synchronous AI waits are forbidden.
-9. **Degraded-state UX is mandatory.** The UI must report specific AI statuses (QUEUED, DEGRADED, etc.).
-10. **No feature is complete without resilience validation.** Production gating requires HEAVY sign-off.
+1. **Temporal Sovereignty:** Corporate events must preserve full transition history. The latest state alone is insufficient.
+2. **Auditability:** Event systems require temporal auditability (versioning, timestamps, source snapshots).
+3. **Deterministic Core:** Deterministic lifecycle logic remains the primary authority over AI inference.
+4. **AI Boundary:** AI may enrich rationales but never define event truth or lifecycle states.
+5. **Visibility First:** Degraded AI states must preserve raw event visibility and PDF excerpts.
+6. **Efficiency:** Event crawlers must use incremental diffing, hashing, and delta-updates.
+7. **UX Clarity:** UI must prioritize state transition clarity over visual complexity.
+8. **Temporal QA:** QA must rigorously validate historical state transitions and version consistency.
+9. **Enrichment Separation:** OpenBB is market enrichment infrastructure, not a lifecycle state authority.
+10. **Synchronization Gates:** Lifecycle state certification is a mandatory prerequisite for valuation and rendering.

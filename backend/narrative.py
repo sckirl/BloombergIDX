@@ -155,6 +155,10 @@ def normalize_to_sso(txn: InsiderTransaction, clusters: Optional[List[Dict]] = N
     Structured Signal Object (SSO) normalization.
     Flattens transaction data into a high-density intelligence object.
     """
+    # Defensive defaults for institutional density
+    rvol = float(txn.rvol) if txn.rvol is not None else 1.0
+    win_rate = float(txn.insider_win_rate) if txn.insider_win_rate is not None else 0.0
+
     return {
         "id": txn.id,
         "tkr": txn.ticker,
@@ -171,8 +175,8 @@ def normalize_to_sso(txn: InsiderTransaction, clusters: Optional[List[Dict]] = N
         "pct": float(txn.ownership_change_pct) if txn.ownership_change_pct else 0,
         "purp": txn.purpose,
         "scr": txn.score,
-        "rvol": float(txn.rvol) if txn.rvol else 0,
-        "win": float(txn.insider_win_rate) if txn.insider_win_rate else 0,
+        "rvol": rvol,
+        "win": win_rate,
         "cls": clusters or []
     }
 

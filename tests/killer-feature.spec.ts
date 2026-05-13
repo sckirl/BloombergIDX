@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const FRONTEND_URL = 'http://localhost:6969';
+const FRONTEND_URL = 'http://localhost:8100';
 
 test.describe('Killer Feature: Insider Accumulation Map & Absorption Ratio', () => {
   

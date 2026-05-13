@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Font size audit', async ({ page }) => {
   page.on('console', msg => console.log('BROWSER_LOG:', msg.text()));
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   await expect(page.locator('text=INITIALIZING DATA PIPELINE...')).not.toBeVisible({ timeout: 20000 });
 
   const elements = await page.evaluate(() => {

@@ -4,9 +4,9 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   
-  console.log('--- FINAL PRODUCTION UAT: pukat-master:6969 ---');
+  console.log('--- FINAL PRODUCTION UAT: pukat-master:8100 ---');
   try {
-    await page.goto('http://pukat-master:6969', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('http://pukat-master:8100', { waitUntil: 'networkidle', timeout: 30000 });
     
     // 1. Check Data Presence
     const rowCount = await page.locator('tbody tr').count();

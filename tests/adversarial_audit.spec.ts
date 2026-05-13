@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Adversarial Audit - BloombergIDX', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:6969');
+    await page.goto('http://localhost:8100');
     // Wait for initial load
     await page.waitForSelector('table, .QuickStart', { timeout: 10000 });
   });

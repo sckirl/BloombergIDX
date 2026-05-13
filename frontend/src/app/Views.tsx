@@ -209,53 +209,62 @@ export const HeatmapView = ({ onSelectTicker }: { onSelectTicker?: (t: string) =
         <div className="flex-1 flex items-center justify-center text-[#444] text-[10px] italic">NO SECTOR ACTIVITY DATA AVAILABLE</div>
       ) : (
         <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 overflow-auto">
-          {data.map((s, i) => {
-            const maxFlow = Math.max(...data.map(d => Math.abs(d.net_flow)));
-            const barWidth = (Math.abs(s.net_flow) / maxFlow) * 100;
-            return (
-              <div key={i} className={`border border-border-custom p-3 flex flex-col relative overflow-hidden ${s.net_flow > 0 ? 'bg-acc2/5' : 'bg-acc3/5'}`}>
-                {/* Visual Flow Bar */}
-                <div 
-                  className={`absolute bottom-0 left-0 h-1 transition-all duration-1000 ${s.net_flow > 0 ? 'bg-acc2 shadow-[0_0_5px_rgba(0,230,118,0.5)]' : 'bg-acc3 shadow-[0_0_5px_rgba(255,23,68,0.5)]'}`}
-                  style={{ width: `${barWidth}%` }}
-                />
-                
-                <div className="flex justify-between items-start mb-2 relative z-10">
-                  <div className="text-[10px] font-black text-white truncate w-32 uppercase tracking-tighter">{s.sector}</div>
-                  <div className={`text-[9px] font-black px-1 ${s.net_flow > 0 ? 'bg-acc2 text-black' : 'bg-acc3 text-white'}`}>
-                    {s.net_flow > 0 ? '+' : ''}{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.net_flow)}
-                  </div>
-                </div>
+          {(() => {
+            const totalMarketCapAll = data.reduce((acc, s) => acc + (s.total_market_cap || 0), 0);
+            return data.map((s, i) => {
+              const maxFlow = Math.max(...data.map(d => Math.abs(d.net_flow)));
+              const barWidth = (Math.abs(s.net_flow) / maxFlow) * 100;
+              const sectorWeight = totalMarketCapAll > 0 ? (s.total_market_cap / totalMarketCapAll) * 100 : 0;
 
-                <div className="flex-1 flex flex-col justify-center items-center py-4 border border-white/5 bg-black/40 group cursor-pointer hover:border-acc/50 transition-colors relative z-10"
-                     onClick={() => s.top_ticker && onSelectTicker?.(s.top_ticker)}
-                >
-                  <div className="text-[8px] text-[#555] uppercase font-bold mb-1">Top Sector Mover</div>
-                  <div className="text-lg font-black text-white tracking-tighter group-hover:text-acc underline decoration-acc/30">{s.top_ticker || 'N/A'}</div>
-                </div>
+              return (
+                <div key={i} className={`border border-border-custom p-3 flex flex-col relative overflow-hidden ${s.net_flow > 0 ? 'bg-acc2/5' : 'bg-acc3/5'}`}>
+                  {/* Visual Flow Bar */}
+                  <div 
+                    className={`absolute bottom-0 left-0 h-1 transition-all duration-1000 ${s.net_flow > 0 ? 'bg-acc2 shadow-[0_0_5px_rgba(0,230,118,0.5)]' : 'bg-acc3 shadow-[0_0_5px_rgba(255,23,68,0.5)]'}`}
+                    style={{ width: `${barWidth}%` }}
+                  />
+                  
+                  <div className="flex justify-between items-start mb-2 relative z-10">
+                    <div className="text-[10px] font-black text-white truncate w-32 uppercase tracking-tighter">{s.sector}</div>
+                    <div className={`text-[9px] font-black px-1 ${s.net_flow > 0 ? 'bg-acc2 text-black' : 'bg-acc3 text-white'}`}>
+                      {s.net_flow > 0 ? '+' : ''}{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.net_flow)}
+                    </div>
+                  </div>
 
-                <div className="mt-3 space-y-1.5 relative z-10 border-t border-white/5 pt-2">
-                  <div className="flex justify-between items-center text-[8px]">
-                     <span className="text-[#666] uppercase">52W Range</span>
-                     <span className="text-fg font-bold">
-                       {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_low)} 
-                       <span className="mx-1 opacity-30">-</span> 
-                       {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_high)}
-                     </span>
+                  <div className="flex-1 flex flex-col justify-center items-center py-4 border border-white/5 bg-black/40 group cursor-pointer hover:border-acc/50 transition-colors relative z-10"
+                       onClick={() => s.top_ticker && onSelectTicker?.(s.top_ticker)}
+                  >
+                    <div className="text-[8px] text-[#555] uppercase font-bold mb-1">Top Sector Mover</div>
+                    <div className="text-lg font-black text-white tracking-tighter group-hover:text-acc underline decoration-acc/30">{s.top_ticker || 'N/A'}</div>
                   </div>
-                  <div className="flex justify-between items-center text-[8px]">
-                     <span className="text-[#666] uppercase">Avg Daily Vol</span>
-                     <span className="text-[#888]">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_volume)}</span>
+
+                  <div className="mt-3 space-y-1.5 relative z-10 border-t border-white/5 pt-2">
+                    <div className="flex justify-between items-center text-[8px]">
+                       <span className="text-[#666] uppercase">52W Range</span>
+                       <span className="text-fg font-bold">
+                         {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_low)} 
+                         <span className="mx-1 opacity-30">-</span> 
+                         {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_high)}
+                       </span>
+                    </div>
+                    <div className="flex justify-between items-center text-[8px]">
+                       <span className="text-[#666] uppercase">Avg Daily Vol</span>
+                       <span className="text-[#888]">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_volume)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[8px]">
+                       <span className="text-[#666] uppercase">Sector Weight</span>
+                       <span className="text-acc font-bold">{sectorWeight.toFixed(2)}%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-2 pt-1 flex justify-between items-center relative z-10">
+                    <span className="text-[8px] text-[#444] font-bold tracking-widest">{s.trade_count} NODES</span>
+                    <span className={`text-[8px] font-black tracking-widest ${s.sentiment === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>{s.sentiment}</span>
                   </div>
                 </div>
-                
-                <div className="mt-2 pt-1 flex justify-between items-center relative z-10">
-                  <span className="text-[8px] text-[#444] font-bold tracking-widest">{s.trade_count} NODES</span>
-                  <span className={`text-[8px] font-black tracking-widest ${s.sentiment === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>{s.sentiment}</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       )}
     </div>
@@ -311,6 +320,8 @@ export const WatchlistView = ({ onSelectTicker }: { onSelectTicker?: (t: string)
               <th className="text-left pb-2">TICKER</th>
               <th className="text-right pb-2">PRICE</th>
               <th className="text-right pb-2">CHG%</th>
+              <th className="text-right pb-2">PE</th>
+              <th className="text-right pb-2">PB</th>
               <th className="text-right pb-2">52W RANGE</th>
               <th className="text-right pb-2">AVG VOL</th>
               <th className="text-right pb-2">INSIDER_BUY</th>
@@ -325,6 +336,8 @@ export const WatchlistView = ({ onSelectTicker }: { onSelectTicker?: (t: string)
                 <td className="py-3 font-black text-white">{row.ticker}</td>
                 <td className="py-3 text-right font-mono">{new Intl.NumberFormat('id-ID').format(row.price)}</td>
                 <td className={`py-3 text-right font-mono ${row.change_pct > 0 ? 'text-acc2' : 'text-acc3'}`}>{row.change_pct > 0 ? '+' : ''}{row.change_pct}%</td>
+                <td className="py-3 text-right font-mono text-[#888]">{row.trailing_pe?.toFixed(1) || 'N/A'}</td>
+                <td className="py-3 text-right font-mono text-[#888]">{row.price_to_book?.toFixed(1) || 'N/A'}</td>
                 <td className="py-3 text-right text-[8px] text-[#666]">
                   {new Intl.NumberFormat('id-ID').format(row.fifty_two_week_low)} - {new Intl.NumberFormat('id-ID').format(row.fifty_two_week_high)}
                 </td>

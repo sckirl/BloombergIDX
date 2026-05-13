@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('Keyboard Navigation & Feel Audit', async ({ page }) => {
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2000);
 

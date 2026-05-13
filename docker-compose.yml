@@ -28,7 +28,7 @@ services:
       - ./backend:/backend
     environment:
       PYTHONUNBUFFERED: 1
-      ALLOWED_ORIGINS: "http://${SERVER_IP:-localhost}:${FRONTEND_PORT:-6969},http://localhost:6969"
+      ALLOWED_ORIGINS: "http://${SERVER_IP:-localhost}:${FRONTEND_PORT:-8100},http://localhost:8100"
       REDIS_URL: "redis://openinsider-redis:6379/0"
     depends_on:
       - db
@@ -38,7 +38,7 @@ services:
     build: ./frontend
     container_name: openinsider-frontend
     ports:
-      - "${FRONTEND_PORT:-6969}:6969"
+      - "${FRONTEND_PORT:-8100}:8100"
     volumes:
       - ./frontend:/app
       - /app/node_modules

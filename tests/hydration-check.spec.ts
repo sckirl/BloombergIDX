@@ -8,7 +8,7 @@ test('verify no hydration mismatch error', async ({ page }) => {
     }
   });
 
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   
   // Wait for some time to allow hydration and potential errors to show up
   await page.waitForTimeout(2000);

@@ -10,7 +10,7 @@ import threading
 from decimal import Decimal
 
 from .logger import logger
-from .database import get_db, engine, SessionLocal
+from .database import get_db, engine, SessionLocal, settings
 from .models import InsiderTransaction, Base
 from . import models
 from .scraper import run_scraper
@@ -44,13 +44,22 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Add CORS middleware to allow requests from the frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
+origins = settings.ALLOWED_ORIGINS.split(",")
+if "*" in origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
 # Global lock for scraper to prevent concurrent runs
 scraper_lock = threading.Lock()
@@ -534,6 +543,7 @@ def get_heatmap(db: Session = Depends(get_db)):
             "avg_52w_high": float(db.query(func.avg(Stock.fifty_two_week_high)).filter(Stock.sector == row.sector).scalar() or 0),
             "avg_52w_low": float(db.query(func.avg(Stock.fifty_two_week_low)).filter(Stock.sector == row.sector).scalar() or 0),
             "avg_volume": float(db.query(func.avg(Stock.avg_volume)).filter(Stock.sector == row.sector).scalar() or 0),
+            "total_market_cap": float(db.query(func.sum(Stock.market_cap)).filter(Stock.sector == row.sector).scalar() or 0),
         })
         
     heatmap.sort(key=lambda x: abs(x["net_flow"]), reverse=True)
@@ -588,7 +598,9 @@ def get_watchlist_data(tickers: str, db: Session = Depends(get_db)):
             "signal": "BUY" if insider_buy_count > 3 else "ACCUM" if insider_buy_count > 0 else "WATCH",
             "fifty_two_week_high": float(stock.fifty_two_week_high or 0),
             "fifty_two_week_low": float(stock.fifty_two_week_low or 0),
-            "avg_volume": int(stock.avg_volume or 0)
+            "avg_volume": int(stock.avg_volume or 0),
+            "trailing_pe": float(stock.trailing_pe or 0),
+            "price_to_book": float(stock.price_to_book or 0)
         })
         
     return result

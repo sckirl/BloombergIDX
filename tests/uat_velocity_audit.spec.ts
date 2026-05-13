@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('UAT Velocity & Scenario Audit', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:6969');
+    await page.goto('http://localhost:8100');
     // Wait for initial load
     await expect(page.locator('text=INITIALIZING DATA PIPELINE...')).not.toBeVisible({ timeout: 20000 });
   });

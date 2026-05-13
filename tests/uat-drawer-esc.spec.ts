@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('Drawer Esc Close Audit', async ({ page }) => {
-  await page.goto('http://localhost:6969');
+  await page.goto('http://localhost:8100');
   await page.waitForTimeout(2000);
 
   const row = page.locator('table.dense-table tbody tr').first();
