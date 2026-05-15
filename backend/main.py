@@ -130,28 +130,69 @@ async def trigger_scrape(background_tasks: BackgroundTasks, full_year: bool = Fa
 @app.get("/insider/enrich")
 async def trigger_enrich(background_tasks: BackgroundTasks):
     """
-    Triggers market metadata enrichment, price history fetching, 
-    and synthetic broker flow generation.
+    Triggers ALL scraping and enrichment tasks in parallel.
     """
-    def run_enrichment():
-        db_session = SessionLocal()
-        try:
-            logger.info("Starting background enrichment process...")
-            enrich_stock_metadata(db_session)
-            fetch_market_history(db_session)
-            generate_broker_flow_proxy(db_session)
+    from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
+    from .event_scraper import seed_initial_events
+    from .scraper import run_scraper
+    
+    async def run_all_parallel():
+        logger.info("Starting FULL parallel enrichment process...")
+        import asyncio
+        
+        def task_insider():
+            logger.info("-> Starting Insider PDF Scraper")
+            run_scraper(full_year=False)
             
-            # Invalidate caches
-            invalidate_cache("market_heatmap")
-            invalidate_cache("market_anomalies")
-            logger.info("Background enrichment process completed.")
+        def task_events():
+            logger.info("-> Starting Corporate Events Scraper")
+            seed_initial_events()
+            
+        def task_market_metadata():
+            db = SessionLocal()
+            try:
+                logger.info("-> Starting Market Metadata Enrichment")
+                enrich_stock_metadata(db)
+            finally:
+                db.close()
+                
+        def task_market_history():
+            db = SessionLocal()
+            try:
+                logger.info("-> Starting Market History Scraper")
+                fetch_market_history(db)
+            finally:
+                db.close()
+                
+        def task_broker_flow():
+            db = SessionLocal()
+            try:
+                logger.info("-> Starting Broker Flow Generator")
+                generate_broker_flow_proxy(db)
+            finally:
+                db.close()
+        
+        # Run all sync tasks in parallel thread pool
+        try:
+            await asyncio.gather(
+                asyncio.to_thread(task_insider),
+                asyncio.to_thread(task_events),
+                asyncio.to_thread(task_market_metadata),
+                asyncio.to_thread(task_market_history),
+                asyncio.to_thread(task_broker_flow)
+            )
         except Exception as e:
-            logger.error(f"Enrichment process failed: {e}", exc_info=True)
-        finally:
-            db_session.close()
+            logger.error(f"Error during parallel enrichment: {e}", exc_info=True)
+        
+        # Invalidate caches
+        from .cache import invalidate_cache
+        invalidate_cache("market_heatmap")
+        invalidate_cache("market_anomalies")
+        invalidate_cache("insider_*")
+        logger.info("FULL parallel enrichment process completed!")
 
-    background_tasks.add_task(run_enrichment)
-    return {"message": "Market enrichment tasks triggered in background"}
+    background_tasks.add_task(run_all_parallel)
+    return {"message": "All scrapers (Insider, Events, Market) triggered in parallel"}
 
 def to_dict(obj):
     """Convert SQLAlchemy model instance to dict with Decimal -> float conversion and NaN/Inf sanitation."""
@@ -614,27 +655,3 @@ def get_corporate_events(db: Session = Depends(get_db)):
     events = db.query(CorporateEvent).order_by(CorporateEvent.event_date.desc()).all()
     return events
 
-@app.get("/insider/enrich")
-async def trigger_enrichment(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """
-    Triggers market data enrichment: metadata, history, broker flow proxies, and events.
-    """
-    from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
-    from .event_scraper import seed_initial_events
-    
-    def run_enrichment():
-        db_session = SessionLocal()
-        try:
-            logger.info("Starting background enrichment process...")
-            enrich_stock_metadata(db_session)
-            fetch_market_history(db_session)
-            generate_broker_flow_proxy(db_session)
-            seed_initial_events() # Uses SessionLocal inside
-            logger.info("Market enrichment background task completed.")
-        except Exception as e:
-            logger.error(f"Enrichment background task failed: {e}")
-        finally:
-            db_session.close()
-
-    background_tasks.add_task(run_enrichment)
-    return {"message": "Market enrichment task triggered"}
