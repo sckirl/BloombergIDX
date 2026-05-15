@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     # Production database from openinsider-db container
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@openinsider-db:5432/openinsider")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://openinsider-redis:6379/0")
-    ALLOWED_ORIGINS: str = "*"
+    ALLOWED_ORIGINS: str = ""
     SCRAPE_INTERVAL_MINUTES: int = 15
 
     class Config:
