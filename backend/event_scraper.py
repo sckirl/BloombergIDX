@@ -1,12 +1,16 @@
 import json
 import re
 from datetime import datetime, timedelta, date
+import hashlib
 from sqlalchemy.orm import Session
 from playwright.sync_api import sync_playwright
 
-from .models import CorporateEvent, Stock
+from .models import CorporateEvent, EventSnapshot, Stock
 from .database import SessionLocal
 from .logger import logger
+from .valuation import calculate_event_valuation
+from .convergence import link_pre_event_anomalies
+from .openbb_adapter import fetch_sector_multiples
 
 def scrape_e_ipo():
     """
@@ -238,6 +242,11 @@ def run_event_scraper():
         updated_count = 0
         
         for e_data in all_events:
+            # Generate a source hash based on key identifying fields
+            hash_string = f"{e_data.get('company_name', '')}_{e_data.get('event_type', '')}_{e_data.get('description', '')}_{e_data.get('status', '')}"
+            source_hash = hashlib.sha256(hash_string.encode('utf-8')).hexdigest()
+            e_data["source_hash"] = source_hash
+
             # Deduplication based on company name and event type
             existing = db.query(CorporateEvent).filter(
                 CorporateEvent.company_name == e_data["company_name"],
@@ -245,23 +254,86 @@ def run_event_scraper():
             ).first()
             
             if not existing:
+                # Track B: Enforce Deterministic Valuation from real-world data (yfinance)
+                val_data = calculate_event_valuation(e_data["ticker"], e_data["event_date"])
+                e_data.update(val_data)
+
+                # Pre-Event Linkage (Convergence Logic)
+                conv_data = link_pre_event_anomalies(db, e_data["ticker"], e_data["event_date"])
+                e_data.update(conv_data)
+
+                # Fetch OpenBB sector multiples
+                stock_record = db.query(Stock).filter(Stock.ticker == e_data["ticker"]).first()
+                if stock_record and stock_record.sector:
+                    sector_data = fetch_sector_multiples(stock_record.sector)
+                    # We don't save sector data straight into corporate events right now but we would use it for benchmarks.
+                    # As a proxy we can log it here to ensure integration works.
+                    logger.info(f"OpenBB sector multiples for {stock_record.sector}: {sector_data}")
+
+                # Init state transition log
+                e_data["state_transition_log"] = json.dumps([{"from": "NONE", "to": e_data["status"], "date": str(e_data["event_date"])}])
                 event = CorporateEvent(**e_data)
                 db.add(event)
+                db.flush()
+                # Create initial snapshot
+                snapshot = EventSnapshot(
+                    event_id=event.id,
+                    version=event.event_version,
+                    status=event.status,
+                    data_snapshot=json.dumps(e_data, default=str)
+                )
+                db.add(snapshot)
                 added_count += 1
                 logger.info(f"NEW EVENT: {e_data['event_type']} - {e_data['company_name']}")
             else:
                 # Update status and description if they've changed
                 has_changed = False
-                if existing.status != e_data["status"]:
-                    existing.status = e_data["status"]
+                
+                # Check if Sprint-3 Valuation data is missing, if so, force an update
+                if existing.pe_multiple is None:
+                    val_data = calculate_event_valuation(e_data["ticker"], e_data["event_date"])
+                    for k, v in val_data.items():
+                        setattr(existing, k, v)
+                    has_changed = True
+
+                if existing.pre_event_smart_money_score is None:
+                    conv_data = link_pre_event_anomalies(db, e_data["ticker"], e_data["event_date"])
+                    for k, v in conv_data.items():
+                        setattr(existing, k, v)
                     has_changed = True
                 
-                if existing.description != e_data["description"]:
-                    existing.description = e_data["description"]
-                    has_changed = True
-                
+                if existing.source_hash != source_hash:
+                    # Capture state transition if status changed
+                    if existing.status != e_data["status"]:
+                        log_entry = {"from": existing.status, "to": e_data["status"], "date": str(date.today())}
+                        try:
+                            transition_log = json.loads(existing.state_transition_log or "[]")
+                        except json.JSONDecodeError:
+                            transition_log = []
+                        transition_log.append(log_entry)
+                        existing.state_transition_log = json.dumps(transition_log)
+                        existing.status = e_data["status"]
+                        has_changed = True
+
+                    if existing.description != e_data["description"]:
+                        existing.description = e_data["description"]
+                        has_changed = True
+
                 if has_changed:
                     existing.event_date = e_data["event_date"]
+                    existing.source_hash = source_hash
+                    existing.event_version += 1
+
+                    # Create a new snapshot for the updated version
+                    snapshot_data = {k: getattr(existing, k) for k in existing.__dict__.keys() if not k.startswith('_')}
+                    snapshot = EventSnapshot(
+                        event_id=existing.id,
+                        version=existing.event_version,
+                        status=existing.status,
+                        data_snapshot=json.dumps(snapshot_data, default=str)
+                    )
+                    db.add(snapshot)
+
                     updated_count += 1
                     logger.info(f"UPDATED EVENT: {e_data['event_type']} - {e_data['company_name']}")
         

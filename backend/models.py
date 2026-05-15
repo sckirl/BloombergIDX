@@ -191,6 +191,13 @@ class CorporateEvent(Base):
     ev_ebitda = Column(Numeric(10, 2), nullable=True)
     premium_1d = Column(Numeric(8, 4), nullable=True)
 
+    # Cross-Module KPIs (Sprint-3)
+    pre_event_insider_volume = Column(Numeric(24, 4), nullable=True)
+    pre_event_smart_money_score = Column(Integer, nullable=True)
+    acquirer_entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True)
+    target_entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True)
+    post_event_absorption_ratio = Column(Numeric(12, 4), nullable=True)
+
     # Temporal State Machine
     status = Column(String(50)) 
     event_version = Column(Integer, default=1)

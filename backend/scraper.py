@@ -38,17 +38,19 @@ def parse_indonesian_number(num_str: str) -> float:
     last_dot = num_str.rfind(".")
     last_comma = num_str.rfind(",")
     
-    if last_comma > last_dot:
-        # Indonesian format: 1.234.567,89
-        num_str = num_str.replace(".", "").replace(",", ".")
-    elif last_dot > last_comma:
-        # US/Standard format: 1,234,567.89
-        num_str = num_str.replace(",", "")
+    if last_comma != -1 and last_dot != -1:
+        if last_comma > last_dot:
+            # Indonesian format: 1.234.567,89
+            num_str = num_str.replace(".", "").replace(",", ".")
+        else:
+            # US/Standard format: 1,234,567.89
+            num_str = num_str.replace(",", "")
     else:
         # Ambiguous (only dot or only comma)
         if last_dot != -1:
             # If dot is followed by exactly 3 digits, it's likely a thousands separator in ID
-            if len(num_str) - last_dot == 4:
+            parts = num_str.split('.')
+            if all(len(p) == 3 for p in parts[1:]):
                 num_str = num_str.replace(".", "")
         elif last_comma != -1:
             # If comma is followed by exactly 3 digits, it's likely a thousands separator in US
@@ -202,7 +204,7 @@ def parse_pdf_content(pdf_bytes: bytes, source_url: str, filing_date_str: str, i
 
         if shares == 0:
             # Fallback if specific "Before/After" labels are missing but "Jumlah Saham" exists
-            m_shares = re.search(r"(?:Jumlah Saham|Number of Shares|Shares)\s*[:]?\s*([\d\.,]+)", full_text, re.I)
+            m_shares = re.search(r"(?:Jumlah Saham|Number of Shares|Shares|Jumlah)\s*[:]?\s*([\d\.,]+)", full_text, re.I)
             if m_shares:
                 shares = parse_indonesian_number(m_shares.group(1))
 
