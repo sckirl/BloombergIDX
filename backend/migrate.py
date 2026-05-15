@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, text
 import os
+import re
 from dotenv import load_dotenv
 
 # Use OpenInsider container hostname if running via Docker, else localhost
@@ -37,13 +38,24 @@ def migrate():
         
         # Helper to add column if not exists
         def add_column(table_name, col_name, col_type):
+            # Validate identifiers to prevent SQL injection
+            if not re.match(r'^[A-Za-z0-9_]+$', table_name):
+                print(f"Error: Invalid table name '{table_name}'")
+                return
+            if not re.match(r'^[A-Za-z0-9_]+$', col_name):
+                print(f"Error: Invalid column name '{col_name}'")
+                return
+
             try:
                 # Check if column exists
-                res = conn.execute(text(f"""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='{table_name}' AND column_name='{col_name}';
-                """)).fetchone()
+                res = conn.execute(
+                    text("""
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name=:table_name AND column_name=:col_name;
+                    """),
+                    {"table_name": table_name, "col_name": col_name}
+                ).fetchone()
                 
                 if not res:
                     print(f"Adding column {col_name} to {table_name}...")
