@@ -419,42 +419,64 @@ export const EventView = ({ onSelectTicker }: { onSelectTicker?: (t: string) => 
                     <>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Underwriter</div>
-                        <div className="text-[9px] font-bold text-white">{event.underwriter}</div>
+                        <div className="text-[9px] font-bold text-white">{event.underwriter || '-'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Price Range</div>
-                        <div className="text-[9px] font-bold text-acc2">{event.offering_price_range}</div>
+                        <div className="text-[9px] font-bold text-acc2">{event.offering_price_range || '-'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Total Shares</div>
-                        <div className="text-[9px] font-bold text-white">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.total_shares)}</div>
+                        <div className="text-[9px] font-bold text-white">{event.total_shares ? new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.total_shares) : '-'}</div>
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Acquirer</div>
-                        <div className="text-[9px] font-bold text-white">{event.acquirer}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PE)</div>
+                        <div className="text-[9px] font-bold text-white">{event.pe_multiple ? `${event.pe_multiple}x` : 'PENDING API'}</div>
                       </div>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Target</div>
-                        <div className="text-[9px] font-bold text-white">{event.target}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PB)</div>
+                        <div className="text-[9px] font-bold text-white">{event.pb_multiple ? `${event.pb_multiple}x` : 'PENDING API'}</div>
                       </div>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Fair Value (KJPP)</div>
-                        <div className="text-[9px] font-bold text-acc2">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.fair_value)}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Unaffected Premium 1D</div>
+                        <div className={`text-[9px] font-bold ${event.premium_1d > 0 ? 'text-acc2' : event.premium_1d < 0 ? 'text-[#ff4444]' : 'text-white'}`}>
+                           {event.premium_1d ? `${(event.premium_1d * 100).toFixed(2)}%` : 'PENDING API'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[7px] text-[#555] uppercase">Trailing Insider Flow (60D)</div>
+                        <div className="text-[9px] font-bold text-acc2">{event.pre_event_insider_volume ? new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.pre_event_insider_volume) : '0'} shares</div>
                       </div>
                     </>
                   )}
                   <div>
-                    <div className="text-[7px] text-[#555] uppercase">Status</div>
-                    <div className={`text-[9px] font-black ${event.status === 'COMPLETED' ? 'text-acc2' : 'text-acc'}`}>{event.status}</div>
+                    <div className="text-[7px] text-[#555] uppercase">Timeline State</div>
+                    <div className={`text-[9px] font-black ${event.status === 'COMPLETED' ? 'text-acc2' : 'text-acc'}`}>[{event.event_version}] {event.status}</div>
                   </div>
                 </div>
+
+                {/* Transition Log / Audit Trail */}
+                {event.state_transition_log && (
+                  <div className="mt-2 border-t border-white/5 pt-2">
+                    <div className="text-[7px] text-[#555] uppercase mb-1">State Transition Audit Trail</div>
+                    <div className="flex gap-2 text-[8px] overflow-x-auto text-[#888]">
+                      {JSON.parse(event.state_transition_log).map((log: any, idx: number) => (
+                        <div key={idx} className="flex items-center">
+                           <span>{log.to} ({log.date})</span>
+                           {idx < JSON.parse(event.state_transition_log).length - 1 && <span className="mx-2 text-acc/50">→</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
-              <div className="md:w-32 flex items-center justify-center border-l border-white/5 pl-4">
-                 <a href={event.source_url} target="_blank" rel="noreferrer" className="text-[8px] border border-acc/30 px-2 py-1 hover:bg-acc hover:text-black transition-colors uppercase font-bold">View Prospectus</a>
+              <div className="md:w-32 flex flex-col items-center justify-center border-l border-white/5 pl-4 space-y-2">
+                 <a href={event.source_url} target="_blank" rel="noreferrer" className="text-[8px] border border-acc/30 px-2 py-1 hover:bg-acc hover:text-black transition-colors uppercase font-bold text-center w-full block">Source Truth</a>
+                 <div className="text-[7px] text-[#444] uppercase tracking-tighter text-center">SHA256 <br/>{event.source_hash ? event.source_hash.substring(0, 8) : 'N/A'}</div>
               </div>
             </div>
           ))}
