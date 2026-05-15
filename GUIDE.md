@@ -77,3 +77,37 @@ The backend requires Playwright browsers, so the Docker image is slightly larger
    ```bash
    alembic upgrade head
    ```
+
+## Step 6: Running Locally (Docker Compose)
+Before deploying to Google Cloud, you can test the entire stack locally using the included Docker Compose setup. This ensures your database migrations, backend API, and frontend connect seamlessly.
+
+1. **Configure Environment Variables:**
+   Ensure you have a `.env` file in the root directory (or inside `/backend`). You can start by copying an example if provided, or simply use defaults.
+   Example `.env` (optional for basic local run):
+   ```ini
+   OPENBB_PAT=your_secure_openbb_pat_here
+   # Other API keys if needed
+   ```
+
+2. **Start the Stack:**
+   From the root of the project, run:
+   ```bash
+   docker compose up --build -d
+   ```
+   *This command builds the Next.js frontend, FastAPI backend, and spins up PostgreSQL and Redis containers.*
+
+3. **Run Database Migrations (Important):**
+   Once the containers are up, you must initialize the database schema. Run this command to execute Alembic migrations inside the backend container:
+   ```bash
+   docker compose exec backend alembic upgrade head
+   ```
+
+4. **Verify the Services:**
+   - **Frontend:** Open your browser and navigate to `http://localhost:8100`.
+   - **Backend API Docs:** Navigate to `http://localhost:8000/docs` to view the FastAPI Swagger UI and test endpoints directly.
+
+5. **Stop the Stack:**
+   When you're done testing, you can shut everything down cleanly:
+   ```bash
+   docker compose down
+   ```
