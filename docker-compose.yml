@@ -29,6 +29,7 @@ services:
     environment:
       PYTHONUNBUFFERED: 1
       ALLOWED_ORIGINS: "http://${SERVER_IP:-localhost}:${FRONTEND_PORT:-8100},http://localhost:8100"
+      DATABASE_URL: "postgresql://user:password@openinsider-db:5432/openinsider"
       REDIS_URL: "redis://openinsider-redis:6379/0"
     depends_on:
       - db
