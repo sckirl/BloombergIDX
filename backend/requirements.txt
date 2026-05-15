@@ -24,3 +24,5 @@ redis
 
 
 openai
+pandas
+reportlab

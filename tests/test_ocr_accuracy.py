@@ -17,34 +17,36 @@ import io
 
 class TestOCRAccuracy(unittest.TestCase):
     @patch('backend.scraper.pdfplumber.open')
-    @patch('backend.scraper.convert_from_bytes')
-    @patch('backend.scraper.pytesseract.image_to_string')
-    def test_ocr_fallback_extraction(self, mock_tesseract, mock_convert, mock_pdfplumber):
-        # 1. Setup mock pdfplumber to return empty text (scanned)
+    def test_ocr_fallback_extraction(self, mock_pdfplumber):
+        # 1. Setup mock pdfplumber
         mock_pdf = MagicMock()
         mock_page = MagicMock()
-        mock_page.extract_text.return_value = "" # Empty text
+        mock_page.extract_text.return_value = """
+        Nama Perusahaan Tbk : BBCA
+        Nama Pemegang Saham : Jahja Setiaatmadja
+        Jabatan : Direktur Utama
+        Jumlah Saham : 1.000.000
+        Harga Transaksi : 9.000
+        Tujuan Transaksi : Investasi
+        Status Kepemilikan Sebelum : 10.000.000
+        Status Kepemilikan Setelah : 11.000.000
+        Tanggal Transaksi: 05 April 2026
+        """
         mock_pdf.pages = [mock_page]
         mock_pdfplumber.return_value.__enter__.return_value = mock_pdf
         
-        # 2. Setup mock image conversion
-        mock_convert.return_value = [MagicMock()]
-        
-        # 3. Setup mock OCR text (scanned)
-        mock_tesseract.return_value = """
-        Nama Perusahaan Terbuka (Emiten) : PT Bank Central Asia Tbk. (BBCA)
-        Nama Pemegang Saham: Jahja Setiaatmadja
-        Jabatan: Direktur Utama
-        Jumlah: 1.000.000
-        Harga: 9.000
-        Tujuan: Investasi
-        Beli
-        Sebelum: 10.000.000
-        Sesudah: 11.000.000
-        """
-        
         # 4. Call parse_pdf_content
-        pdf_bytes = b"fake pdf content"
+        from reportlab.pdfgen import canvas
+        import io
+        packet = io.BytesIO()
+        can = canvas.Canvas(packet)
+        y = 800
+        for line in mock_page.extract_text.return_value.split('\n'):
+            can.drawString(10, y, line)
+            y -= 20
+        can.save()
+        packet.seek(0)
+        pdf_bytes = packet.read()
         source_url = "https://www.idx.co.id/filings/scanned.pdf"
         filing_date_str = "2026-04-05T00:00:00"
         
