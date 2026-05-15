@@ -17,8 +17,8 @@ import io
 
 class TestOCRAccuracy(unittest.TestCase):
     @patch('backend.scraper.pdfplumber.open')
-    @patch('backend.scraper.convert_from_bytes')
-    @patch('backend.scraper.pytesseract.image_to_string')
+    @patch('pdf2image.convert_from_bytes')
+    @patch('pytesseract.image_to_string')
     def test_ocr_fallback_extraction(self, mock_tesseract, mock_convert, mock_pdfplumber):
         # 1. Setup mock pdfplumber to return empty text (scanned)
         mock_pdf = MagicMock()
