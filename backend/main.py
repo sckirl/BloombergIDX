@@ -560,30 +560,59 @@ def get_watchlist_data(tickers: str, db: Session = Depends(get_db)):
         return []
 
     from .models import Stock, PriceTick
-    
+    from sqlalchemy import func
+
+    # 1. Bulk fetch stocks
+    stocks = db.query(Stock).filter(Stock.ticker.in_(ticker_list)).all()
+    stock_map = {s.ticker: s for s in stocks}
+    stock_ids = [s.id for s in stocks]
+
+    if not stock_ids:
+        return []
+
+    # 2. Bulk fetch insider counts (last 30 days)
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).date()
+    insider_counts = db.query(
+        InsiderTransaction.stock_id,
+        func.count(InsiderTransaction.id).label("count")
+    ).filter(
+        InsiderTransaction.stock_id.in_(stock_ids),
+        InsiderTransaction.transaction_type == 'BUY',
+        InsiderTransaction.date >= thirty_days_ago
+    ).group_by(InsiderTransaction.stock_id).all()
+    insider_map = {row.stock_id: row.count for row in insider_counts}
+
+    # 3. Bulk fetch latest 2 ticks per stock using window function
+    # This avoids N+1 queries for ticks
+    rn_subq = db.query(
+        PriceTick.stock_id,
+        PriceTick.close,
+        PriceTick.date,
+        func.row_number().over(
+            partition_by=PriceTick.stock_id,
+            order_by=PriceTick.date.desc()
+        ).label("rn")
+    ).filter(PriceTick.stock_id.in_(stock_ids)).subquery()
+
+    ticks_rows = db.query(rn_subq).filter(rn_subq.c.rn <= 2).all()
+    ticks_map = {}
+    for row in ticks_rows:
+        if row.stock_id not in ticks_map:
+            ticks_map[row.stock_id] = []
+        ticks_map[row.stock_id].append(row)
+
+    # Reorder and filter results based on original ticker_list
     result = []
     for ticker in ticker_list:
-        stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+        stock = stock_map.get(ticker)
         if not stock:
             continue
-            
-        # Get latest tick
-        latest_tick = db.query(PriceTick).filter(PriceTick.stock_id == stock.id).order_by(PriceTick.date.desc()).first()
-        
-        # Get previous tick for change calculation
-        prev_tick = None
-        if latest_tick:
-            prev_tick = db.query(PriceTick).filter(
-                PriceTick.stock_id == stock.id,
-                PriceTick.date < latest_tick.date
-            ).order_by(PriceTick.date.desc()).first()
 
-        # Get insider stats
-        insider_buy_count = db.query(InsiderTransaction).filter(
-            InsiderTransaction.stock_id == stock.id,
-            InsiderTransaction.transaction_type == 'BUY',
-            InsiderTransaction.date >= (datetime.now() - timedelta(days=30)).date()
-        ).count()
+        stock_ticks = ticks_map.get(stock.id, [])
+        latest_tick = stock_ticks[0] if len(stock_ticks) > 0 else None
+        prev_tick = stock_ticks[1] if len(stock_ticks) > 1 else None
+
+        insider_buy_count = insider_map.get(stock.id, 0)
 
         change_pct = 0.0
         if latest_tick and prev_tick and prev_tick.close > 0:
@@ -594,7 +623,7 @@ def get_watchlist_data(tickers: str, db: Session = Depends(get_db)):
             "price": float(latest_tick.close) if latest_tick else 0.0,
             "change_pct": float(round(change_pct * 100, 2)),
             "insider_buy_level": "HIGH" if insider_buy_count > 5 else "MED" if insider_buy_count > 1 else "LOW",
-            "smart_flow": "BULLISH" if insider_buy_count > 2 else "NEUTRAL", # Simplified proxy
+            "smart_flow": "BULLISH" if insider_buy_count > 2 else "NEUTRAL",
             "signal": "BUY" if insider_buy_count > 3 else "ACCUM" if insider_buy_count > 0 else "WATCH",
             "fifty_two_week_high": float(stock.fifty_two_week_high or 0),
             "fifty_two_week_low": float(stock.fifty_two_week_low or 0),
@@ -602,7 +631,7 @@ def get_watchlist_data(tickers: str, db: Session = Depends(get_db)):
             "trailing_pe": float(stock.trailing_pe or 0),
             "price_to_book": float(stock.price_to_book or 0)
         })
-        
+
     return result
 
 @app.get("/insider/events")
