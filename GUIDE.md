@@ -73,8 +73,9 @@ The backend requires Playwright browsers, so the Docker image is slightly larger
 ## Step 5: Security & Verification
 1. **Verify No Hallucinations:** Navigate to the events tab. Check the deal multiples. If OpenBB fails, the values will be blank/None instead of hallucinated mock data.
 2. **Tailscale/VPN:** For institutional security, remove `--allow-unauthenticated` from the Frontend deployment and secure it via Cloud Identity Aware Proxy (IAP) or host it entirely internally using Tailscale Subnet Routers connected to your VPC.
-3. **Database Migrations:** Before full use, ensure you run Alembic migrations against the Cloud SQL instance:
+3. **Database Migrations:** Alembic is pre-configured to read `DATABASE_URL` directly from your environment settings. Before full use, ensure you apply the Alembic migrations against the Cloud SQL instance. You can do this by executing a shell in your deployed container or temporarily running it from your local machine connected to Cloud SQL via Auth Proxy:
    ```bash
+   # From inside the backend directory or container:
    alembic upgrade head
    ```
 
