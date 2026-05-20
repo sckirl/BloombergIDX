@@ -22,7 +22,7 @@ body {
 
 /* Institutional Font Lockdown */
 * {
-  font-size: 10px !important;
+  font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
 }
 

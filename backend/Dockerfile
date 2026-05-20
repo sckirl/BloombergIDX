@@ -37,4 +37,4 @@ COPY . /backend
 EXPOSE 8000
 
 # Start command
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["bash", "-c", "python -m backend.migrate && uvicorn backend.main:app --host 0.0.0.0 --port 8000"]

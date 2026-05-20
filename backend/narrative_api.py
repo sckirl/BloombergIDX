@@ -15,6 +15,10 @@ async def get_narrative(txn_id: int, background_tasks: BackgroundTasks, db: Sess
         # If it was a retryable failure, maybe re-queue?
         # For now, if it's FAILED_RETRYABLE, RATE_LIMITED or TIMEOUT, we allow one retry if requested
         # But to keep it simple and follow the mandate, we just return the stored state.
+        # Fetch transaction to get confidence score
+        txn = db.query(InsiderTransaction).filter(InsiderTransaction.id == txn_id).first()
+        if txn:
+            stored["confidence"] = float(txn.confidence) if txn.confidence else 1.0
         return stored
     
     # 2. Fetch transaction
@@ -26,11 +30,12 @@ async def get_narrative(txn_id: int, background_tasks: BackgroundTasks, db: Sess
     sso = normalize_to_sso(txn)
     
     # 4. Initialize as QUEUED and trigger background worker
-    NarrativeStore.set_state(txn_id, NarrativeState.QUEUED)
-    background_tasks.add_task(process_narrative_async, txn_id, sso)
+    confidence = float(txn.confidence) if txn.confidence else 1.0
+    NarrativeStore.set_state(txn_id, NarrativeState.QUEUED, confidence=confidence)
+    background_tasks.add_task(process_narrative_async, txn_id, sso, confidence)
     
     # Return initial state
-    return {"state": NarrativeState.QUEUED, "text": "Narrative generation queued."}
+    return {"state": NarrativeState.QUEUED, "text": "Narrative generation queued.", "confidence": confidence}
 
 @router.get("/insider/sso/{txn_id}")
 def get_sso(txn_id: int, db: Session = Depends(get_db)):

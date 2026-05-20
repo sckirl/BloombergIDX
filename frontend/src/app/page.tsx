@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import CommandPalette from './CommandPalette';
-import { FlowView, AnomalyView, HeatmapView, WatchlistView, EventView } from './Views';
+import { FlowView, AnomalyView, HeatmapView, WatchlistView, EventView, AlertView } from './Views';
+import { exportToCSV } from '../utils/export';
 
 // --- Types ---
 interface InsiderTransaction {
@@ -60,6 +61,7 @@ const Sidebar = ({ onNav, activeView, isScraping }: { onNav: (view: string) => v
         { id: 'HEATMAP', label: 'HEATMAP', cmd: 'MAP' },
         { id: 'EVENTS', label: 'EVENTS (IPO/M&A)', cmd: 'EVENT' },
         { id: 'WATCH', label: 'WATCHLIST', cmd: 'WL' },
+        { id: 'ALERTS', label: 'ALERT ENGINE', cmd: 'ALERT' },
       ].map((item) => (
         <button
           key={item.id}
@@ -141,7 +143,8 @@ const SignalFeed = ({ isScraping }: { isScraping: boolean }) => {
 const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: string, transactionId?: number, onClose: () => void }) => {
   const [priceMap, setPriceMap] = useState<PriceLevel[]>([]);
   const [absorption, setAbsorption] = useState<AbsorptionData | null>(null);
-  const [narrative, setNarrative] = useState<{state: string, text: string} | null>(null);
+  const [intelligence, setIntelligence] = useState<{momentum?: any, bandar?: any} | null>(null);
+  const [narrative, setNarrative] = useState<{state: string, text: string, confidence?: number} | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -149,12 +152,20 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
       setLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const [pmRes, absRes] = await Promise.all([
+        const [pmRes, absRes, momRes, banRes] = await Promise.all([
           fetch(`${apiUrl}/insider/accumulation/${ticker}`),
-          fetch(`${apiUrl}/insider/absorption/${ticker}`)
+          fetch(`${apiUrl}/insider/absorption/${ticker}`),
+          fetch(`${apiUrl}/insider/momentum/${ticker}`),
+          fetch(`${apiUrl}/insider/bandar/${ticker}`)
         ]);
         if (pmRes.ok) setPriceMap(await pmRes.json());
         if (absRes.ok) setAbsorption(await absRes.json());
+        
+        const intel: any = {};
+        if (momRes.ok) intel.momentum = await momRes.json();
+        if (banRes.ok) intel.bandar = await banRes.json();
+        setIntelligence(intel);
+
       } catch (e) {
         console.error(e);
       } finally {
@@ -240,13 +251,13 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
   };
 
   return (
-    <div className="absolute inset-y-0 right-0 w-[400px] bg-black border-l border-acc shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-30 flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="p-2 bg-acc flex justify-between items-center">
+    <aside className="absolute inset-y-0 right-0 w-[400px] bg-black border-l border-acc shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-30 flex flex-col animate-in slide-in-from-right duration-300">
+      <header className="p-2 bg-acc flex justify-between items-center">
         <span className="text-black font-black text-[10px] tracking-tighter">SECURITY_INTEL: {ticker}</span>
         <button onClick={onClose} className="text-black font-bold text-[10px] hover:bg-black/10 px-1">✕</button>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <section className="flex-1 overflow-y-auto p-4 space-y-6">
         {loading ? (
           <div className="h-full flex items-center justify-center text-acc text-[10px] animate-pulse">DECRYPTING ASYMMETRIC DATA...</div>
         ) : (
@@ -255,30 +266,30 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
             <section>
               <h3 className="text-[10px] font-black text-acc mb-2 uppercase tracking-widest border-b border-border-custom pb-1">Absorption Ratio</h3>
               {absorption && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="terminal-panel p-2">
+                <article className="grid grid-cols-2 gap-4">
+                  <article className="terminal-panel p-2">
                     <div className="text-[8px] text-[#666] uppercase">Ratio</div>
                     <div className={`text-4xl font-black ${absorption.absorption_ratio > 0.1 ? 'text-acc2' : 'text-acc'}`}>
                       {(absorption.absorption_ratio).toFixed(2)}x
                     </div>
-                  </div>
-                  <div className="terminal-panel p-2">
+                  </article>
+                  <article className="terminal-panel p-2">
                     <div className="text-[8px] text-[#666] uppercase">30D ADV</div>
                     <div className="text-[10px] font-bold text-white">{new Intl.NumberFormat('id-ID').format(absorption.adv_30d)}</div>
-                  </div>
-                </div>
+                  </article>
+                </article>
               )}
             </section>
 
             {/* Price Map Section */}
             <section>
               <h3 className="text-[10px] font-black text-acc mb-2 uppercase tracking-widest border-b border-border-custom pb-1">Accumulation Price Map</h3>
-              <div className="space-y-1">
+              <section className="space-y-1">
                 {priceMap.map((level, i) => {
                   const maxShares = Math.max(...priceMap.map(l => l.shares));
                   const width = (level.shares / maxShares) * 100;
                   return (
-                    <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                    <article key={i} className="flex items-center gap-2 text-[10px] font-mono">
                       <div className="w-12 text-[#666]">{level.price}</div>
                       <div className="flex-1 h-3 bg-surface relative">
                         <div 
@@ -289,16 +300,46 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
                           {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(level.shares)}
                         </div>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
-              </div>
+              </section>
             </section>
+
+            {/* BANDAR-PROXY-01 & MOMENTUM-01 Intelligence */}
+            {intelligence && (
+              <section className="space-y-4">
+                <h3 className="text-[10px] font-black text-acc mb-2 uppercase tracking-widest border-b border-border-custom pb-1">Asymmetric Signals</h3>
+                <section className="grid grid-cols-2 gap-2">
+                  <article className="terminal-panel p-2 bg-acc/5 border border-acc/20">
+                    <div className="text-[7px] text-[#666] uppercase mb-1">Momentum Convergence</div>
+                    <div className={`text-[10px] font-black ${intelligence.momentum?.signal === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>
+                      {intelligence.momentum?.signal || 'NEUTRAL'}
+                    </div>
+                    <div className="text-[8px] text-[#444] mt-1">SCORE: {intelligence.momentum?.convergence_score}</div>
+                  </article>
+                  <article className="terminal-panel p-2 bg-acc/5 border border-acc/20">
+                    <div className="text-[7px] text-[#666] uppercase mb-1">Bandar Detection</div>
+                    <div className={`text-[10px] font-black ${intelligence.bandar?.bandar_detected ? 'text-acc3' : 'text-acc2'}`}>
+                      {intelligence.bandar?.bandar_detected ? 'DETECTED' : 'NOT DETECTED'}
+                    </div>
+                    <div className="text-[8px] text-[#444] mt-1">CONF: {intelligence.bandar?.confidence * 100}%</div>
+                  </article>
+                </section>
+              </section>
+            )}
 
             {/* AI Summary Section */}
             <section className="terminal-panel p-3 bg-acc/5 border border-acc/20 relative overflow-hidden">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-[9px] font-black text-acc uppercase tracking-widest">NVIDIA_AI_NARRATIVE</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[9px] font-black text-acc uppercase tracking-widest">NVIDIA_AI_NARRATIVE</h3>
+                  {narrative?.confidence !== undefined && (
+                    <span className="text-[7px] text-[#666] border border-[#333] px-1" title="Data Confidence Score">
+                      CONF: {(narrative.confidence * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
                 {narrative && (
                   <span className={`text-[7px] px-1 font-bold ${
                     narrative.state === 'SUCCESS' ? 'bg-acc2 text-black' : 
@@ -309,15 +350,14 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
                   </span>
                 )}
               </div>
-              
               {renderNarrative()}
-            </section>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
+              </section>
+              </>
+              )}
+              </section>
+              </aside>
+              );
+              };
 
 const Clock = () => {
   const [time, setTime] = useState<string | null>(null);
@@ -387,9 +427,33 @@ export default function Home() {
   const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
   const [commandValue, setCommandValue] = useState('');
   const [isScraping, setIsScraping] = useState(false);
-  const [marketData, setMarketData] = useState({ ihsg: 7234.12, ihsgChg: 0.12, usdidr: 15670, usdidrChg: -0.05 });
+  const [marketData, setMarketData] = useState({ ihsg: 0.0, ihsgChg: 0.0, usdidr: 0.0, usdidrChg: 0.0 });
 
   const footerInputRef = useRef<HTMLInputElement>(null);
+
+
+  useEffect(() => {
+    const fetchMarketIndices = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${apiUrl}/insider/market-indices`);
+        if (res.ok) {
+          const data = await res.json();
+          setMarketData({
+            ihsg: data.ihsg || 0.0,
+            ihsgChg: data.ihsgChg || 0.0,
+            usdidr: data.usdidr || 0.0,
+            usdidrChg: data.usdidrChg || 0.0
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch market indices", e);
+      }
+    };
+    fetchMarketIndices();
+    const indicesInterval = setInterval(fetchMarketIndices, 300000); // 5 minutes
+    return () => clearInterval(indicesInterval);
+  }, []);
 
   useEffect(() => {
     const checkScraper = async () => {
@@ -459,6 +523,8 @@ export default function Home() {
       setActiveView('WATCH');
     } else if (val === 'EVENT' || val === 'EVENTS') {
       setActiveView('EVENTS');
+    } else if (val === 'ALERT' || val === 'ALERTS') {
+      setActiveView('ALERTS');
     } else if (val.startsWith('WL ADD ')) {
       const parts = val.split(' ');
       if (parts.length >= 3 && parts[2]) {
@@ -494,14 +560,7 @@ export default function Home() {
   useEffect(() => {
     fetchData();
 
-    // Market data randomizer (Bloomberg feel)
-    const marketInterval = setInterval(() => {
-      setMarketData(prev => ({
-        ...prev,
-        ihsg: prev.ihsg + (Math.random() - 0.5) * 2,
-        usdidr: prev.usdidr + (Math.random() - 0.5) * 5
-      }));
-    }, 5000);
+
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -526,12 +585,12 @@ export default function Home() {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
-      clearInterval(marketInterval);
+      
     };
   }, [fetchData, runTerminalCommand]);
 
   return (
-    <div className="h-screen flex flex-col bg-bg text-fg font-mono overflow-hidden select-none">
+    <main className="h-screen flex flex-col bg-bg text-fg font-mono overflow-hidden select-none">
       <div className="scanline"></div>
       <div className="crt-overlay"></div>
 
@@ -566,22 +625,28 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <section className="flex-1 flex overflow-hidden relative">
         <Sidebar onNav={setActiveView} activeView={activeView} isScraping={isScraping} />
         
-        <main className="flex-1 flex flex-col bg-black border-r border-border-custom relative">
-          <div className="h-6 bg-surface border-b border-border-custom flex items-center px-2 justify-between z-10">
+        <section className="flex-1 flex flex-col bg-black border-r border-border-custom relative">
+          <header className="h-6 bg-surface border-b border-border-custom flex items-center px-2 justify-between z-10">
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-bold text-acc">VIEW: {activeView}</span>
               <span className="text-[9px] text-[#444]">|</span>
               <span className="text-[9px] text-[#888]">FILTER: ALL_SECTORS</span>
             </div>
             <div className="flex gap-2">
+               <button 
+                  onClick={() => exportToCSV(data, `idx_insider_${selectedTicker || 'latest'}`)} 
+                  className="text-[9px] text-acc hover:underline uppercase font-bold"
+               >
+                 Export (CSV)
+               </button>
                <button onClick={() => fetchData()} className="text-[9px] text-acc hover:underline uppercase font-bold">Refresh (F5)</button>
             </div>
-          </div>
+          </header>
 
-          <div className="flex-1 overflow-auto p-0 relative">
+          <article className="flex-1 overflow-auto p-0 relative">
             {loading && activeView === 'INSIDER' ? (
               <div className="h-full flex items-center justify-center text-acc text-[10px] animate-pulse">
                 INITIALIZING DATA PIPELINE...
@@ -651,6 +716,8 @@ export default function Home() {
               <EventView onSelectTicker={(t) => { setSelectedTicker(t); setActiveView('INSIDER'); fetchData(t); }} />
             ) : activeView === 'WATCH' ? (
               <WatchlistView onSelectTicker={(t) => { setSelectedTicker(t); setActiveView('INSIDER'); fetchData(t); }} />
+            ) : activeView === 'ALERTS' ? (
+              <AlertView />
             ) : (
               <div className="p-4 text-acc text-[10px]">UNKNOWN VIEW STATE</div>
             )}
@@ -662,11 +729,11 @@ export default function Home() {
                 onClose={() => { setSelectedTicker(null); setSelectedTransactionId(null); }} 
               />
             )}
-          </div>
-        </main>
+          </article>
+        </section>
 
         <SignalFeed isScraping={isScraping} />
-      </div>
+      </section>
 
       <footer className="h-6 bg-acc border-t border-border-custom flex items-center px-1 gap-2 z-40 relative">
         <span className="text-black font-black text-[10px] px-1 bg-white">COMMAND</span>
@@ -685,6 +752,6 @@ export default function Home() {
           <div className="text-[9px] font-black text-black uppercase tracking-tighter">ALT+Q: RESET</div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }

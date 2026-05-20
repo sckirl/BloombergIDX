@@ -64,6 +64,8 @@ def scrape_e_ipo():
                     elif "public offering" in text_lower or "offering" in text_lower: status = "OFFERING"
                     elif "allotment" in text_lower: status = "ALLOTMENT"
                     elif "listing" in text_lower: status = "COMPLETED"
+                    elif "postponed" in text_lower or "ditunda" in text_lower: status = "POSTPONED"
+                    elif "waiting" in text_lower or "menunggu" in text_lower: status = "WAITING"
 
                     # Price range
                     price_range = "N/A"
@@ -250,7 +252,8 @@ def run_event_scraper():
             # Deduplication based on company name and event type
             existing = db.query(CorporateEvent).filter(
                 CorporateEvent.company_name == e_data["company_name"],
-                CorporateEvent.event_type == e_data["event_type"]
+                CorporateEvent.event_type == e_data["event_type"],
+                CorporateEvent.description == e_data["description"]
             ).first()
             
             if not existing:
