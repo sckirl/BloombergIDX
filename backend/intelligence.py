@@ -25,11 +25,11 @@ def calculate_momentum(db: Session, ticker: str, days: int = 20):
         PriceTick.date >= (datetime.now() - timedelta(days=days)).date()
     ).scalar()
     
-    price_momentum = sanitize_float(latest_tick.close / sma_res) if sma_res else 1.0
+    price_momentum = sanitize_float(float(latest_tick.close) / float(sma_res)) if sma_res else 1.0
 
     # 2. Volume Trend (Current Volume / Avg Volume)
     avg_vol = float(stock.avg_volume or 1)
-    vol_trend = sanitize_float(latest_tick.volume / avg_vol)
+    vol_trend = sanitize_float(float(latest_tick.volume) / avg_vol)
 
     # 3. Broker Flow Trend (Net Flow last 5 days vs last 20 days)
     five_days_ago = (datetime.now() - timedelta(days=5)).date()
@@ -45,7 +45,7 @@ def calculate_momentum(db: Session, ticker: str, days: int = 20):
         BrokerTransaction.date >= twenty_days_ago
     ).scalar() or 0
 
-    flow_trend = sanitize_float(net_5d / (abs(net_20d / 4) + 1)) # Normalized
+    flow_trend = sanitize_float(float(net_5d) / (abs(float(net_20d) / 4) + 1)) # Normalized
 
     # Convergence Score
     convergence = (price_momentum * 0.4) + (min(vol_trend, 3.0) * 0.3) + (min(max(flow_trend, -2.0), 2.0) * 0.3)
@@ -99,7 +99,7 @@ def detect_bandar_activity(db: Session, ticker: str):
 
     stealth_flag = False
     if latest_tick and ten_days_ago_tick:
-        price_change = abs(sanitize_float((latest_tick.close - ten_days_ago_tick.close) / float(ten_days_ago_tick.close)))
+        price_change = abs(sanitize_float((float(latest_tick.close) - float(ten_days_ago_tick.close)) / float(ten_days_ago_tick.close)))
         
         net_flow_10d = db.query(func.sum(BrokerTransaction.net_value)).filter(
             BrokerTransaction.stock_id == stock.id,
