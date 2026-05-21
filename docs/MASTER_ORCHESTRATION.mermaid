@@ -1,0 +1,102 @@
+graph TD
+    %% Global Styles & Classes
+    classDef supervisor fill:#6a1b9a,stroke:#4a148c,color:#fff,stroke-width:4px;
+    classDef pm fill:#ffa500,stroke:#f57f17,color:#000,font-weight:bold;
+    classDef pro fill:#2979FF,stroke:#fff,stroke-width:1px,color:#fff;
+    classDef fast fill:#00E676,stroke:#000,stroke-width:1px,color:#000;
+    classDef heavy fill:#FF1744,stroke:#fff,stroke-width:2px,color:#fff,font-weight:bold;
+    classDef infra fill:#121212,stroke:#333,stroke-width:1px,color:#888,stroke-dasharray: 5 5;
+    classDef external fill:#1a1a1a,stroke:#444,stroke-width:1px,color:#aaa;
+
+    %% 1. COMMAND & CONTROL (The Brain)
+    subgraph Control_Plane ["fa:fa-user-tie COMMAND & ORCHESTRATION"]
+        PM["ELITE PM ORCHESTRATOR<br/>(20y Bloomberg Exp)"]:::pm
+        BA["BA-AGENT (RESEARCH)<br/>(Market Microstructure)"]:::pm
+    end
+
+    %% 2. DATA INGESTION & TRUTH (Track A)
+    subgraph Data_Layer ["fa:fa-database DATA INGESTION & TRUTH"]
+        direction TB
+        IDX_API["IDX API Announcement"]:::external
+        KSEI_PDF["KSEI Disclosure Node"]:::external
+        YFIN["yfinance Market Feed"]:::external
+        
+        S1["SCRAPER-IDX-01 (PRO)<br/>Primary Ingestion"]:::pro
+        S2["SCRAPER-KSEI-01 (HEAVY)<br/>PDF OCR & Logic"]:::heavy
+        S3["MARKET-INDEX-01 (PRO)<br/>IHSG/USDIDR Live"]:::pro
+        
+        IDX_API --> S1
+        KSEI_PDF --> S2
+        YFIN --> S3
+    end
+
+    %% 3. INTELLIGENCE CORES (Track B)
+    subgraph Intelligence_Core ["fa:fa-microchip ASYMMETRIC INTEL CORES"]
+        direction LR
+        MOM["MOMENTUM-01 (PRO)<br/>Price/Volume Convergence"]:::pro
+        BND["BANDAR-PROXY-01 (HEAVY)<br/>Market-Maker Detection"]:::heavy
+        PEP["ENTITY-MAP-01 (HEAVY)<br/>PEP & Network Mapping"]:::heavy
+        VAL["VALUATION-CORE-01 (HEAVY)<br/>P/E & P/B Multiples"]:::heavy
+        
+        S1 & S2 --> MOM & BND & PEP & VAL
+    end
+
+    %% 4. AI SYNTHESIS (Track C)
+    subgraph AI_Synthesis ["fa:fa-brain AI NARRATIVE SYNTHESIS"]
+        NV_API["NVIDIA Nemotron-4b"]:::external
+        AI_WORKER["AI-SUMMARY-01 (HEAVY)<br/>Async Narrative Generator"]:::heavy
+        AI_CACHE["AI-CACHE-01 (PRO)<br/>Redis Narrative Store"]:::pro
+        
+        BND & MOM & PEP -->|"Structured Signal Object"| AI_WORKER
+        AI_WORKER <--> NV_API
+        AI_WORKER --> AI_CACHE
+    end
+
+    %% 5. INSTITUTIONAL TERMINAL (Track D)
+    subgraph Terminal_Delivery ["fa:fa-desktop INSTITUTIONAL TERMINAL UX"]
+        direction TB
+        UI_SHELL["TERMINAL-FAST-01 (FAST)<br/>Bloomberg 3-Panel DNA"]:::fast
+        DRAWER["DEAL-SHEET-01 (FAST)<br/>Institutional Drawer"]:::fast
+        ALERTS["ALERT-SYS-01 (PRO)<br/>LocalStorage Rule Engine"]:::pro
+        EXPORT["EXPORT-01 (FAST)<br/>Institutional CSV Utility"]:::fast
+        MAP["MAP-VIEW-01 (FAST)<br/>Treemap Flow Analysis"]:::fast
+        
+        Intelligence_Core --> UI_SHELL
+        AI_CACHE --> DRAWER
+        UI_SHELL --> ALERTS & EXPORT & MAP
+    end
+
+    %% 6. VALIDATION & GATING (Track E)
+    subgraph Validation_Gates ["fa:fa-skull-crossbones ADVERSARIAL QA & 100% KPI"]
+        direction TB
+        QA_SIT["QA-SIT-01 (HEAVY)<br/>4V Data Integrity Audit"]:::heavy
+        QA_UAT["QA-UAT-01 (HEAVY)<br/>100-Scenario Scenario Strike"]:::heavy
+        QA_REG["QA-REGRESS-01 (HEAVY)<br/>Stability Shield"]:::heavy
+        
+        Data_Layer & Intelligence_Core & Terminal_Delivery -.-> QA_SIT & QA_UAT & QA_REG
+        QA_SIT & QA_UAT & QA_REG -.->|"REJECTED (Loop Back)"| PM
+        QA_UAT -.->|"100% KPI CERTIFIED"| PROD("fa:fa-certificate PRODUCTION MASTER"):::pm
+    end
+
+    %% INFRASTRUCTURE MAPPING
+    subgraph Infra_Plumbing ["fa:fa-server INFRASTRUCTURE PLUMBING"]
+        DOCKER["Docker Compose Orchestration"]:::infra
+        REDIS["Redis (Cache/Queue)"]:::infra
+        DB["PostgreSQL (Truth)"]:::infra
+        TS["Tailscale Mesh"]:::infra
+    end
+
+    %% CROSS-SERVICE FLOWS
+    PM ==> Control_Plane
+    Control_Plane ==> Data_Layer
+    Control_Plane ==> Intelligence_Core
+    Control_Plane ==> AI_Synthesis
+    Control_Plane ==> Terminal_Delivery
+
+    S1 & S2 & S3 --> DB
+    Intelligence_Core <--> DB
+    Infra_Plumbing <--> Data_Layer & AI_Synthesis & Terminal_Delivery
+
+    %% LEGEND & MANDATES
+    Note1["fa:fa-exclamation-triangle SOUL MANDATE:<br/>MINIMAL CHANGES TO STABLE CODE<br/>STRICT 10px MONO DENSITY"]
+    Note1 --- PM
