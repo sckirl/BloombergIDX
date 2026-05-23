@@ -133,15 +133,15 @@ def scrape_idx_mergers():
             
             for keyword in keywords:
                 logger.info(f"Searching IDX for: {keyword}")
-                script = f"""
-                async () => {{
-                    const url = "https://www.idx.co.id/primary/ListedCompany/GetAnnouncement?kodeEmiten=&emitenType=*&indexFrom=0&pageSize=100&dateFrom={date_from}&dateTo={date_to}&lang=id&keyword=" + encodeURIComponent("{keyword}");
+                script = """
+                async ({date_from, date_to, keyword}) => {
+                    const url = `https://www.idx.co.id/primary/ListedCompany/GetAnnouncement?kodeEmiten=&emitenType=*&indexFrom=0&pageSize=100&dateFrom=${date_from}&dateTo=${date_to}&lang=id&keyword=` + encodeURIComponent(keyword);
                     const res = await fetch(url);
                     return await res.json();
-                }}
+                }
                 """
                 try:
-                    data = page.evaluate(script)
+                    data = page.evaluate(script, {"date_from": date_from, "date_to": date_to, "keyword": keyword})
                     items = data.get("Results") or data.get("Replies") or []
                     
                     for item in items:
