@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import stealth
 import pdfplumber
 
 from .logger import logger
@@ -349,16 +349,14 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str, issuer_na
 def run_scraper(full_year=False):
     logger.info(f"Starting Scraper (Full Year: {full_year})")
     db = SessionLocal()
-    
-    with sync_playwright() as p:
+
+    with Stealth().use_sync(sync_playwright()) as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
         page = context.new_page()
-        
-        # Apply Stealth to bypass advanced detection
-        stealth_sync(page)
-        
+
         try:
+
             page.goto("https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/", wait_until="networkidle")
             
             all_items = []
@@ -447,5 +445,8 @@ def run_scraper(full_year=False):
     logger.info("Scraper Finished.")
 
 if __name__ == "__main__":
+    import sys
+    run_scraper(full_year="--full-year" in sys.argv)
+in__":
     import sys
     run_scraper(full_year="--full-year" in sys.argv)

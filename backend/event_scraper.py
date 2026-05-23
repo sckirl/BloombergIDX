@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 import hashlib
 from sqlalchemy.orm import Session
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import stealth
 
 from .models import CorporateEvent, EventSnapshot, Stock
 from .database import SessionLocal
@@ -21,14 +21,12 @@ def scrape_e_ipo():
     events = []
     logger.info("Starting E-IPO scraper...")
     
-    with sync_playwright() as p:
+    with Stealth().use_sync(sync_playwright()) as p:
         try:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
             page = context.new_page()
-            
-            # Apply Stealth
-            stealth_sync(page)
+
             
             # E-IPO website is notoriously slow and often needs multiple attempts or long waits
             page.goto("https://www.e-ipo.co.id/en/ipo/index", wait_until="domcontentloaded", timeout=60000)
@@ -121,14 +119,12 @@ def scrape_idx_mergers():
     events = []
     logger.info("Starting IDX Merger scraper...")
     
-    with sync_playwright() as p:
+    with Stealth().use_sync(sync_playwright()) as p:
         try:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
             page = context.new_page()
-            
-            # Apply Stealth
-            stealth_sync(page)
+
             
             keywords = ["Pengambilalihan", "Akuisisi", "Merger"]
             # Look back 60 days for corporate actions

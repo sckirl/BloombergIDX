@@ -1807,5 +1807,54 @@
         "price": 326.0,
         "date_found": true,
         "total_value_found": true
+    },
+    "MEJA": {
+        "last_updated": "2026-05-24",
+        "shares": 372579016.0,
+        "price": 103.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "RICY": {
+        "last_updated": "2026-05-24",
+        "shares": 600000.0,
+        "price": 126.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "BTPS": {
+        "last_updated": "2026-05-24",
+        "shares": 1500.0,
+        "price": 985.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "MSIE": {
+        "last_updated": "2026-05-24",
+        "shares": 5000000.0,
+        "price": 135.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "RUGI": {
+        "last_updated": "2026-05-24",
+        "shares": 0.61,
+        "price": 17.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "KLBF": {
+        "last_updated": "2026-05-24",
+        "shares": 114940.0,
+        "price": 850.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "MEDC": {
+        "last_updated": "2026-05-24",
+        "shares": 10017300.0,
+        "price": 1735.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }
