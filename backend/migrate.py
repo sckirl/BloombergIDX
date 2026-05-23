@@ -2,11 +2,12 @@ from sqlalchemy import create_engine, text
 import os
 import re
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@openinsider-db:5432/openinsider")
-
 def migrate():
-    print(f"Connecting to {DATABASE_URL}...")
-    engine = create_engine(DATABASE_URL)
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    print(f"Connecting to {database_url}...")
+    engine = create_engine(database_url)
     
     with engine.connect() as conn:
         print("Checking for missing tables...")

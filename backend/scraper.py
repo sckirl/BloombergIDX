@@ -373,14 +373,19 @@ def run_scraper(full_year=False):
                         date_to = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
                         page_size = 50
                     
-                    script = f"""
-                    async () => {{
-                        const url = "https://www.idx.co.id/primary/ListedCompany/GetAnnouncement?kodeEmiten=&emitenType=*&indexFrom=0&pageSize={page_size}&dateFrom={date_from}&dateTo={date_to}&lang=id&keyword=" + encodeURIComponent("{keyword}");
+                    script = """
+                    async ({ page_size, date_from, date_to, keyword }) => {
+                        const url = `https://www.idx.co.id/primary/ListedCompany/GetAnnouncement?kodeEmiten=&emitenType=*&indexFrom=0&pageSize=${page_size}&dateFrom=${date_from}&dateTo=${date_to}&lang=id&keyword=` + encodeURIComponent(keyword);
                         const res = await fetch(url);
                         return await res.json();
-                    }}
+                    }
                     """
-                    data = page.evaluate(script)
+                    data = page.evaluate(script, {
+                        "page_size": page_size,
+                        "date_from": date_from,
+                        "date_to": date_to,
+                        "keyword": keyword
+                    })
                     items = data.get("Results") or data.get("Replies") or []
                     all_items.extend(items)
                 except Exception as e:
@@ -412,15 +417,15 @@ def run_scraper(full_year=False):
                         
                         logger.info(f"Ingesting: {url}")
                         try:
-                            b64_script = f"""
-                            fetch("{url}").then(res => res.blob()).then(blob => new Promise((resolve, reject) => {{
+                            b64_script = """
+                            (url) => fetch(url).then(res => res.blob()).then(blob => new Promise((resolve, reject) => {
                                 const reader = new FileReader();
                                 reader.onloadend = () => resolve(reader.result.split(',')[1]);
                                 reader.onerror = reject;
                                 reader.readAsDataURL(blob);
-                            }}))
+                            }))
                             """
-                            b64_pdf = page.evaluate(b64_script)
+                            b64_pdf = page.evaluate(b64_script, url)
                             pdf_bytes = base64.b64decode(b64_pdf)
                             
                             futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title, issuer_name))

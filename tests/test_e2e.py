@@ -72,12 +72,29 @@ class E2EDataIntegrityTests(unittest.TestCase):
         mock_db = MagicMock()
         mock_session_local.return_value = mock_db
 
-        # Mock the scalar results for pe and pb averages
-        mock_db.query.return_value.filter.return_value.scalar.side_effect = [15.0, 2.5]
+        # Mock the scalar() returns for avg_pe and avg_pb
+        mock_pe_query = MagicMock()
+        mock_pe_query.scalar.return_value = 15.0
+
+        mock_pb_query = MagicMock()
+        mock_pb_query.scalar.return_value = 2.0
+
+        # Setup side effect to return different queries based on the func being called
+        def query_side_effect(*args, **kwargs):
+            # In actual implementation: db.query(func.avg(Stock.trailing_pe))
+            # Just keeping it simple: first query is PE, second is PB
+            if mock_db.query.call_count == 1:
+                return mock_pe_query
+            else:
+                return mock_pb_query
+
+        mock_db.query.side_effect = query_side_effect
+        mock_pe_query.filter.return_value = mock_pe_query
+        mock_pb_query.filter.return_value = mock_pb_query
 
         res = adapter.fetch_sector_multiples("Financials")
         self.assertEqual(res["sector_pe_avg"], 15.0)
-        self.assertEqual(res["sector_pb_avg"], 2.5)
+        self.assertEqual(res["sector_pb_avg"], 2.0)
 
 if __name__ == '__main__':
     unittest.main()
