@@ -18,7 +18,13 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-engine = create_engine(settings.DATABASE_URL)
+# Add connection timeout for managed databases (e.g. DigitalOcean)
+# pool_pre_ping=True helps detect dropped connections
+engine = create_engine(
+    settings.DATABASE_URL, 
+    connect_args={"connect_timeout": 10},
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

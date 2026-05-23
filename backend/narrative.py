@@ -50,7 +50,8 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any], confidence: 
     )
 
     # Fetch model from environment or fallback to institutional default
-    model_name = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
+    # Resilient check for both MODEL and MODE keys
+    model_name = os.getenv("NVIDIA_MODEL") or os.getenv("NVIDIA_MODE") or "nvidia/nemotron-mini-4b-instruct"
 
     try:
         # 1. Immediate state transition

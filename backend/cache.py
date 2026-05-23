@@ -29,8 +29,16 @@ class CustomEncoder(json.JSONEncoder):
         return super().encode(sanitize(obj))
 
 try:
-    redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
-    logger.info(f"Redis connected at {settings.REDIS_URL}")
+    # Managed providers like DigitalOcean require ssl_cert_reqs='none' if CA cert is not provided
+    if settings.REDIS_URL.startswith("rediss://"):
+        redis_client = redis.from_url(
+            settings.REDIS_URL, 
+            decode_responses=True,
+            ssl_cert_reqs=None # Trust self-signed/managed certs
+        )
+    else:
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    logger.info(f"Redis connected at {settings.REDIS_URL.split('@')[-1] if '@' in settings.REDIS_URL else settings.REDIS_URL}")
 except Exception as e:
     logger.error(f"Redis connection failed: {e}")
     redis_client = None
