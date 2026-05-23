@@ -1,42 +1,38 @@
 # BloombergIDX: Indonesian Asymmetric Intelligence Terminal
 
-BloombergIDX is an institutional-grade intelligence platform designed to identify asymmetric signals within the Indonesian equity market (IDX). Unlike standard stock dashboards, this system focuses on identifying "Smart Money" activity, insider accumulation, and stealth distribution patterns before they are fully priced in by the broader market.
+BloombergIDX is an institutional-grade intelligence platform designed to identify asymmetric signals within the Indonesian equity market (IDX). This system focuses on identifying institutional activity, insider accumulation, and stealth distribution patterns.
 
-The platform provides a high-density, command-first interface inspired by the Bloomberg Terminal DNA, optimized for professional traders, quantitative analysts, and institutional desks.
-
----
+The platform provides a high-density, command-first interface inspired by Bloomberg Terminal design patterns, optimized for professional traders and quantitative analysts.
 
 ## 1. Core Intelligence Modules
 
 ### Insider Intelligence
-*   **Conviction Scoring**: Real-time analysis of Director and Commissioner disclosures using a weighted scoring model (Role, Value, RVOL, and Cluster Buy signals).
-*   **Accumulation Price Map**: Visual volume profile indicating the specific price levels where insiders are concentrating their capital.
+*   **Conviction Scoring**: Real-time analysis of Director and Commissioner disclosures using a weighted scoring model (Role, Value, RVOL, and Cluster signals).
+*   **Accumulation Price Map**: Visual volume profile indicating price levels where insiders are concentrating capital.
 *   **Absorption Ratio**: A liquidity metric measuring insider buy volume relative to the 30-day Average Daily Volume (ADV).
 
-### Smart Money & Broker Flow
-*   **Bandar Proxy Detection**: Advanced rules-based detection of market-maker activity through broker concentration (HHI) and cross-trade patterns.
+### Smart Money and Broker Flow
+*   **Bandar Proxy Detection**: Rules-based detection of market-maker activity through broker concentration (HHI) and cross-trade patterns.
 *   **Broker Clustering**: Identifying coordinated accumulation across top-tier Indonesian sekuritas (brokers).
-*   **Stealth Accumulation Scanner**: Detection of positive net broker flow during periods of low price volatility.
+*   **Stealth Accumulation Scanner**: Detection of positive net broker flow during periods of price consolidation.
 
 ### Corporate Event Intelligence
-*   **Temporal Event Lifecycle**: A versioned database tracking the full lifecycle of E-IPOs, Mergers, Acquisitions, and Divestments.
-*   **Valuation Engine**: Automated calculation of deal multiples (P/E, P/B, EV/EBITDA) and premiums relative to unaffected share prices.
-*   **Audit Transparency**: Direct "Source-to-State" linkage, providing original PDF snippets alongside extracted transaction terms.
+*   **Temporal Event Lifecycle**: A versioned database tracking the lifecycle of E-IPOs, Mergers, and Acquisitions.
+*   **Valuation Engine**: Automated calculation of deal multiples (P/E, P/B, EV/EBITDA) and premiums relative to unaffected prices.
+*   **Audit Transparency**: Source-to-State linkage, providing original PDF documentation alongside extracted terms.
 
 ### AI Narrative Layer
-*   **Asynchronous NLP**: Powered by NVIDIA Nemotron-4b, providing concise, high-density summaries of complex filings.
-*   **Confidence Inheritance**: AI narratives strictly adhere to deterministic data confidence, using probabilistic language for lower-scored signals.
-
----
+*   **Asynchronous NLP**: Powered by NVIDIA Nemotron-4b, providing high-density summaries of complex regulatory filings.
+*   **Confidence Inheritance**: AI narratives strictly adhere to data confidence, using probabilistic language for lower-scored signals.
 
 ## 2. Technical Stack
 
-*   **Frontend**: Next.js 14 (App Router), Tailwind CSS, TanStack Table, Recharts.
+*   **Frontend**: Next.js 14, Tailwind CSS, TanStack Table, Recharts.
 *   **Backend**: FastAPI (Python 3.11), SQLAlchemy 2.0.
-*   **Data Pipeline**: Playwright (Playwright-context fetches), BeautifulSoup4, PDFPlumber.
+*   **Data Pipeline**: Playwright, BeautifulSoup4, PDFPlumber.
 *   **Intelligence**: NVIDIA Build API (Nemotron-mini-4b-instruct), yfinance.
-*   **Persistence**: PostgreSQL (Core Data), Redis (Narrative Cache & Task Queue).
-*   **Infrastructure**: Docker, Docker Compose.
+*   **Persistence**: PostgreSQL, Redis.
+*   **Infrastructure**: Docker, Docker Compose, Google Cloud Run.
 
 ---
 
@@ -76,16 +72,38 @@ To run the terminal locally using Docker, follow these steps:
 
 ## 4. Cloud Deployment (Google Cloud Run)
 
-BloombergIDX is architected for low-cost, high-efficiency execution on Google Cloud Platform.
+BloombergIDX is optimized for Google Cloud Run. Follow this simplified guide for institutional deployment:
 
-### Steps
-1.  **Containerize**: Build and push images to Google Artifact Registry.
-2.  **Database**: Provision a Cloud SQL (PostgreSQL) instance.
-3.  **Caching**: Provision a Memorystore (Redis) instance.
-4.  **Deployment**:
-    *   Deploy the backend to Cloud Run. Ensure you set the `DATABASE_URL` and `REDIS_URL` environment variables.
-    *   Deploy the frontend to Cloud Run (or Vercel). Set `NEXT_PUBLIC_API_URL` to your backend's Cloud Run URL.
-5.  **Scheduling**: Use Google Cloud Scheduler to trigger the `/insider/scrape` and `/insider/enrich` endpoints every 15 minutes.
+### Prerequisites
+*   [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`).
+*   A GCP Project with billing enabled.
+*   Managed Database (Cloud SQL PostgreSQL) and Redis (Memorystore) instances.
+
+### Step 1: Deploy Backend
+Execute from the project root:
+```bash
+gcloud run deploy openinsider-backend \
+  --source ./backend \
+  --env-vars-file .env.yaml \
+  --region asia-southeast1 \
+  --allow-unauthenticated
+```
+*Note: Your `.env.yaml` should contain `DATABASE_URL`, `REDIS_URL`, and `NVIDIA_API_KEY`.*
+
+### Step 2: Deploy Frontend
+First, obtain the URL of your deployed backend. Then deploy the frontend:
+```bash
+gcloud run deploy openinsider-frontend \
+  --source ./frontend \
+  --env-vars NEXT_PUBLIC_API_URL=https://your-backend-url.a.run.app \
+  --region asia-southeast1 \
+  --allow-unauthenticated
+```
+
+### Step 3: Setup Automated Intelligence
+Configure [Google Cloud Scheduler](https://cloud.google.com/scheduler) to perform a `GET` request every 15 minutes to:
+`https://your-backend-url.a.run.app/insider/enrich`
+This ensures the asymmetric signals and market metadata remain current.
 
 ---
 

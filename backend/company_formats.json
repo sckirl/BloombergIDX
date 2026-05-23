@@ -1702,5 +1702,12 @@
         "price": 194.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "BEEF": {
+        "last_updated": "2026-05-21",
+        "shares": 7041800.0,
+        "price": 151.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }
