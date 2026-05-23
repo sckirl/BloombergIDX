@@ -52,11 +52,14 @@ To run the terminal locally using Docker, follow these steps:
     ```
 
 2.  **Configure Environment**:
-    Create a `.env` file in the root directory:
+    Create a `.env` file in the root directory. **Only the API Key is mandatory** for the standard Docker setup:
     ```bash
     NVIDIA_API_KEY=your_api_key_here
-    DATABASE_URL=postgresql://user:password@openinsider-db:5432/openinsider
-    REDIS_URL=redis://openinsider-redis:6379/0
+    
+    # Optional: Override defaults for custom infrastructure
+    # NVIDIA_MODEL=nvidia/llama-3.1-nemotron-70b-instruct
+    # DATABASE_URL=postgresql://user:password@openinsider-db:5432/openinsider
+    # REDIS_URL=redis://openinsider-redis:6379/0
     ```
 
 3.  **Launch the Strike**:
