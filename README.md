@@ -77,6 +77,9 @@ To run the terminal locally using Docker, follow these steps:
 
 BloombergIDX is optimized for Google Cloud Run. Follow this simplified guide for institutional deployment:
 
+> [!CAUTION]
+> **Cloud Run is NOT Zero-Config.** Unlike the local Docker setup, you must manually provision a Database (Cloud SQL) and Redis (Memorystore) instance in GCP. The application will fail to boot if these connection strings are not provided.
+
 ### Prerequisites
 *   [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`).
 *   A GCP Project with billing enabled.

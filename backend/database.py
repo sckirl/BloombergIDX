@@ -4,11 +4,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-
-    # Configuration is loaded from environment variables or .env file
-    DATABASE_URL: str
-    REDIS_URL: str
+    # Configuration with institutional fallbacks for local Docker setup
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@openinsider-db:5432/openinsider")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://openinsider-redis:6379/0")
     ALLOWED_ORIGINS: str = "*"
+    NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
 
     SCRAPE_INTERVAL_MINUTES: int = 15
 
