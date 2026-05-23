@@ -65,21 +65,19 @@ class E2EDataIntegrityTests(unittest.TestCase):
         self.assertEqual(float(result["pe_multiple"]), 15.5)
         self.assertEqual(float(result["premium_1d"]), 0.1)
 
-    @patch('backend.openbb_adapter.requests.get')
-    def test_openbb_adapter(self, mock_get):
-        import os
+    @patch('backend.openbb_adapter.SessionLocal')
+    def test_openbb_adapter(self, mock_session_local):
         import backend.openbb_adapter as adapter
-        adapter.OPENBB_PAT = "test_pat" # Override module level var
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "results": [{"pe_ratio": 10}, {"pe_ratio": 20}]
-        }
-        mock_get.return_value = mock_resp
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+
+        # Mock the scalar results for pe and pb averages
+        mock_db.query.return_value.filter.return_value.scalar.side_effect = [15.0, 2.5]
 
         res = adapter.fetch_sector_multiples("Financials")
         self.assertEqual(res["sector_pe_avg"], 15.0)
+        self.assertEqual(res["sector_pb_avg"], 2.5)
 
 if __name__ == '__main__':
     unittest.main()
