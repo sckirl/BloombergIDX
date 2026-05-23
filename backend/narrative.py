@@ -49,13 +49,16 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any], confidence: 
         "Max 300 characters. No filler."
     )
 
+    # Fetch model from environment or fallback to institutional default
+    model_name = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
+
     try:
         # 1. Immediate state transition
         NarrativeStore.set_state(txn_id, NarrativeState.PROCESSING, confidence=confidence)
         
-        # 2. Call NVIDIA (nemotron-mini-4b-instruct)
+        # 2. Call NVIDIA
         response = await client.chat.completions.create(
-            model="nvidia/nemotron-mini-4b-instruct",
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": context}
