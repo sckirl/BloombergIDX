@@ -27,35 +27,48 @@ def repair_zero_prices():
         db.commit()
         print(f"Deleted {deleted} misparsed records.")
 
-        # 2. Fix 0 values
+        # 2. Fix 0 or missing values
         problematic = db.query(InsiderTransaction).filter(
             or_(
                 InsiderTransaction.price == 0,
-                InsiderTransaction.value == 0
+                InsiderTransaction.price.is_(None),
+                InsiderTransaction.value == 0,
+                InsiderTransaction.value.is_(None)
             )
         ).all()
-        print(f"Found {len(problematic)} transactions with price or value 0.")
+        print(f"Found {len(problematic)} transactions with price or value 0/None.")
         
         fixed_count = 0
         for t in problematic:
             if not t.ticker or t.ticker == "UNKNOWN": continue
             
-            # Get Price
-            price = get_price_on_date(t.ticker, t.date)
-            if price > 0:
-                t.price = price
-                if not t.shares or t.shares == 0:
-                    t.shares = 1.0 # Minimal fallback
-                t.value = t.shares * t.price
-                fixed_count += 1
-                print(f"  Fixed {t.ticker} on {t.date}: Price set to {price}, Value set to {t.value}")
+            modified = False
+
+            # Get Price if missing
+            if t.price is None or t.price == 0:
+                price = get_price_on_date(t.ticker, t.date)
+                if price > 0:
+                    t.price = price
+                    modified = True
             
-            # Recalculate Score
-            t_dict = {c.name: getattr(t, c.name) for c in t.__table__.columns}
-            score, reasons = calculate_score(t_dict, db=db)
-            t.score = score
-            import json
-            t.score_reasons = json.dumps(reasons)
+            # Recalculate value if missing
+            if t.value is None or t.value == 0:
+                if t.price is not None and t.price > 0:
+                    if t.shares is None or t.shares == 0:
+                        t.shares = 1.0 # Minimal fallback
+                    t.value = t.shares * t.price
+                    modified = True
+
+            if modified:
+                fixed_count += 1
+                print(f"  Fixed {t.ticker} on {t.date}: Price set to {t.price}, Value set to {t.value}")
+
+                # Recalculate Score
+                t_dict = {c.name: getattr(t, c.name) for c in t.__table__.columns}
+                score, reasons = calculate_score(t_dict, db=db)
+                t.score = score
+                import json
+                t.score_reasons = json.dumps(reasons)
 
         db.commit()
         print(f"Repair finished. {fixed_count} transactions updated.")

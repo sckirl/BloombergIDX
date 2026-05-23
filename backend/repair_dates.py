@@ -12,10 +12,11 @@ sys.path.append(os.getcwd())
 
 from backend.scraper import extract_transaction_date
 
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/openinsider")
-
 def repair_dates():
-    engine = create_engine(DB_URL)
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    engine = create_engine(db_url)
     with engine.connect() as conn:
         print("Searching for transactions where date may be inaccurate (defaults to filing date)...")
         res = conn.execute(text("SELECT id, source_url, date, filing_date FROM insider_transactions"))

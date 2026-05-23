@@ -21,7 +21,7 @@ class NarrativeState(str, Enum):
     STALE = "STALE"
     DEGRADED = "DEGRADED"
 
-async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
+async def process_narrative_async(txn_id: int, sso: Dict[str, Any], confidence: float = 1.0):
     """
     Asynchronous narrative generator using NVIDIA Nemotron.
     Transitions through NarrativeState based on result.
@@ -30,7 +30,7 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
     api_key = os.getenv("NVIDIA_API_KEY")
     if not api_key:
         logger.error("NVIDIA_API_KEY not found in environment.")
-        NarrativeStore.set_state(txn_id, NarrativeState.DEGRADED, "AI configuration missing.")
+        NarrativeStore.set_state(txn_id, NarrativeState.DEGRADED, "AI configuration missing.", confidence=confidence)
         return
 
     client = AsyncOpenAI(
@@ -51,7 +51,7 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
 
     try:
         # 1. Immediate state transition
-        NarrativeStore.set_state(txn_id, NarrativeState.PROCESSING)
+        NarrativeStore.set_state(txn_id, NarrativeState.PROCESSING, confidence=confidence)
         
         # 2. Call NVIDIA (nemotron-mini-4b-instruct)
         response = await client.chat.completions.create(
@@ -68,7 +68,7 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
         narrative_text = response.choices[0].message.content.strip()
         
         # 3. Final Success state
-        NarrativeStore.set_state(txn_id, NarrativeState.SUCCESS, narrative_text)
+        NarrativeStore.set_state(txn_id, NarrativeState.SUCCESS, narrative_text, confidence=confidence)
         logger.info(f"Narrative SUCCESS for ID {txn_id}")
         
     except Exception as e:
@@ -77,11 +77,11 @@ async def process_narrative_async(txn_id: int, sso: Dict[str, Any]):
         
         # Resilience: Handle timeouts and rate limits
         if "rate limit" in error_msg or "429" in error_msg:
-            NarrativeStore.set_state(txn_id, NarrativeState.RATE_LIMITED)
+            NarrativeStore.set_state(txn_id, NarrativeState.RATE_LIMITED, confidence=confidence)
         elif "timeout" in error_msg:
-            NarrativeStore.set_state(txn_id, NarrativeState.TIMEOUT)
+            NarrativeStore.set_state(txn_id, NarrativeState.TIMEOUT, confidence=confidence)
         else:
-            NarrativeStore.set_state(txn_id, NarrativeState.FAILED_RETRYABLE)
+            NarrativeStore.set_state(txn_id, NarrativeState.FAILED_RETRYABLE, confidence=confidence)
 
 class NarrativeStore:
     """Redis-backed state management for AI Narratives with DB persistence."""
@@ -92,11 +92,11 @@ class NarrativeStore:
         return f"{cls.PREFIX}{transaction_id}"
 
     @classmethod
-    def set_state(cls, transaction_id: int, state: NarrativeState, text: Optional[str] = None, ttl: int = 86400):
+    def set_state(cls, transaction_id: int, state: NarrativeState, text: Optional[str] = None, confidence: Optional[float] = None, ttl: int = 86400):
         # 1. Update Redis (Fast path for UI polling)
         if redis_client:
             key = cls._get_key(transaction_id)
-            payload = {"state": state.value, "text": text}
+            payload = {"state": state.value, "text": text, "confidence": confidence}
             try:
                 redis_client.setex(key, ttl, json.dumps(payload, cls=CustomEncoder))
                 logger.info(f"NarrativeStore (Redis): ID {transaction_id} -> {state.value}")
@@ -114,6 +114,8 @@ class NarrativeStore:
             narrative.state = state.value
             if text:
                 narrative.narrative_text = text
+            if confidence is not None:
+                narrative.confidence_score = confidence
             narrative.updated_at = datetime.now()
             db.commit()
             logger.info(f"NarrativeStore (DB): ID {transaction_id} -> {state.value} PERSISTED")
@@ -141,7 +143,8 @@ class NarrativeStore:
             if narrative:
                 return {
                     "state": narrative.state,
-                    "text": narrative.narrative_text
+                    "text": narrative.narrative_text,
+                    "confidence": float(narrative.confidence_score) if narrative.confidence_score else None
                 }
         except Exception as e:
             logger.error(f"NarrativeStore.get_state (DB) failed: {e}")

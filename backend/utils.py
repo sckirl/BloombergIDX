@@ -2,6 +2,21 @@ from typing import Dict, Any, List, Tuple
 import datetime
 import json
 
+def sanitize_float(val: Any) -> float:
+    """
+    Ensures a value is a valid float for JSON serialization.
+    Returns 0.0 for NaN, Inf, or -Inf.
+    """
+    if val is None:
+        return 0.0
+    try:
+        f_val = float(val)
+        if f_val != f_val or f_val == float('inf') or f_val == float('-inf'):
+            return 0.0
+        return f_val
+    except (ValueError, TypeError):
+        return 0.0
+
 def normalize_role(role_str: str) -> str:
     if not role_str:
         return "OTHERS"

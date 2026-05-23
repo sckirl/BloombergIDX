@@ -18,9 +18,11 @@ from .utils import (
     normalize_role, 
     calculate_score, 
     get_30d_adv, 
-    get_insider_stats_for_absorption
+    get_insider_stats_for_absorption,
+    sanitize_float
 )
 from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
+from .market_indices import get_real_market_indices
 
 import os
 
@@ -99,6 +101,9 @@ async def daily_scheduler():
 async def startup_event():
     logger.info("Startup: Triggering daily scheduler...")
     asyncio.create_task(daily_scheduler())
+    # Seed entities
+    from .seed_entities import seed_entities
+    seed_entities()
 
 @app.get("/health")
 def health_check():
@@ -159,25 +164,33 @@ def to_dict(obj):
     for column in obj.__table__.columns:
         val = getattr(obj, column.name)
         if isinstance(val, Decimal):
-            f_val = float(val)
-            # Bloomberg-grade sanitation: No NaN or Inf after Decimal conversion
-            if f_val != f_val or f_val == float('inf') or f_val == float('-inf'):
-                d[column.name] = 0.0
-            else:
-                d[column.name] = f_val
+            d[column.name] = sanitize_float(val)
         elif isinstance(val, (datetime, date)):
             d[column.name] = val.isoformat()
         elif isinstance(val, float):
-            # Bloomberg-grade sanitation: No NaN or Inf in institutional feed
-            if val != val or val == float('inf') or val == float('-inf'):
-                d[column.name] = 0.0
-            else:
-                d[column.name] = val
+            d[column.name] = sanitize_float(val)
         else:
             d[column.name] = val
     return d
 
 from .cache import get_cache, set_cache, invalidate_cache
+from .intelligence import calculate_momentum, detect_bandar_activity, get_entity_intelligence
+
+@app.get("/insider/momentum/{ticker}")
+def get_momentum_api(ticker: str, db: Session = Depends(get_db)):
+    data = calculate_momentum(db, ticker)
+    # Institutional Mandate: Always return 200, use status field for data availability
+    return data
+
+@app.get("/insider/bandar/{ticker}")
+def get_bandar_api(ticker: str, db: Session = Depends(get_db)):
+    data = detect_bandar_activity(db, ticker)
+    # Institutional Mandate: Always return 200, use status field for data availability
+    return data
+
+@app.get("/insider/entity/{name}")
+def get_entity_api(name: str, db: Session = Depends(get_db)):
+    return get_entity_intelligence(db, name)
 
 @app.get("/insider/latest", response_model=List[Dict[str, Any]])
 def get_latest_insiders(ticker: str = None, db: Session = Depends(get_db)):
@@ -620,6 +633,7 @@ async def trigger_enrichment(background_tasks: BackgroundTasks, db: Session = De
     Triggers market data enrichment: metadata, history, broker flow proxies, and events.
     """
     from .market_scraper import enrich_stock_metadata, fetch_market_history, generate_broker_flow_proxy
+    from .market_indices import get_real_market_indices
     from .event_scraper import seed_initial_events
     
     def run_enrichment():
@@ -638,3 +652,7 @@ async def trigger_enrichment(background_tasks: BackgroundTasks, db: Session = De
 
     background_tasks.add_task(run_enrichment)
     return {"message": "Market enrichment task triggered"}
+
+@app.get("/insider/market-indices")
+def get_market_indices_api():
+    return get_real_market_indices()

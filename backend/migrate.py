@@ -1,14 +1,13 @@
 from sqlalchemy import create_engine, text
 import os
 import re
-from dotenv import load_dotenv
-
-# Use OpenInsider container hostname if running via Docker, else localhost
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@openinsider-db:5432/openinsider")
 
 def migrate():
-    print(f"Connecting to {DATABASE_URL}...")
-    engine = create_engine(DATABASE_URL)
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    print(f"Connecting to {database_url}...")
+    engine = create_engine(database_url)
     
     with engine.connect() as conn:
         print("Checking for missing tables...")
@@ -28,11 +27,33 @@ def migrate():
                 status VARCHAR(50),
                 description TEXT,
                 source_url VARCHAR(500),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source_hash VARCHAR(255),
+                event_version INTEGER DEFAULT 1,
+                state_transition_log TEXT,
+                pe_multiple NUMERIC(10, 4),
+                pb_multiple NUMERIC(10, 4),
+                premium_1d NUMERIC(10, 4),
+                pre_event_smart_money_score NUMERIC(10, 4),
+                pre_event_insider_volume BIGINT
             );
         """))
         conn.commit()
         print("Table corporate_events verified.")
+
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS event_snapshots (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER,
+                version INTEGER,
+                status VARCHAR(50),
+                data_snapshot TEXT,
+                snapshot_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(event_id) REFERENCES corporate_events(id)
+            );
+        """))
+        conn.commit()
+        print("Table event_snapshots verified.")
 
         print("Checking for missing columns...")
         

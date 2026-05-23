@@ -1,4 +1,5 @@
 'use client';
+import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 
 import React, { useEffect, useState } from 'react';
 
@@ -188,7 +189,18 @@ export const HeatmapView = ({ onSelectTicker }: { onSelectTicker?: (t: string) =
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const res = await fetch(`${apiUrl}/insider/heatmap`);
         if (res.ok) {
-          setData(await res.json());
+          const rawData = await res.json();
+          // Transform for recharts Treemap
+          const totalMarketCap = rawData.reduce((sum: number, item: any) => sum + (item.total_market_cap || 0), 0);
+          
+          const treemapData = rawData.map((item: any) => ({
+             name: item.sector || 'UNKNOWN',
+             size: item.total_market_cap > 0 ? item.total_market_cap : 1, // use market cap for size
+             net_flow: item.net_flow,
+             top_ticker: item.top_ticker,
+             weight: totalMarketCap > 0 ? (item.total_market_cap / totalMarketCap * 100).toFixed(1) : 0
+          }));
+          setData(treemapData);
         }
       } catch (e) {
         console.error(e);
@@ -199,72 +211,95 @@ export const HeatmapView = ({ onSelectTicker }: { onSelectTicker?: (t: string) =
     fetchHeatmap();
   }, []);
 
+  const CustomizedContent = (props: any) => {
+    const { depth, x, y, width, height, index, name, net_flow, top_ticker, weight } = props;
+
+    if (depth !== 1) return null;
+
+    const isPositive = net_flow > 0;
+    // Calculate intensity based on flow magnitude relative to others
+    const maxFlow = Math.max(...data.map(d => Math.abs(d.net_flow)));
+    const intensity = maxFlow > 0 ? Math.abs(net_flow) / maxFlow : 0;
+    
+    // Institutional colors: #00E676 (green) and #FF5252 (red)
+    const opacity = 0.2 + (intensity * 0.8); // Min 0.2, max 1.0
+    const bgColor = isPositive ? `rgba(0, 230, 118, ${opacity})` : `rgba(255, 82, 82, ${opacity})`;
+
+    return (
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          style={{
+            fill: bgColor,
+            stroke: '#121212',
+            strokeWidth: 2,
+            transition: 'all 0.3s ease',
+          }}
+          className="cursor-pointer hover:opacity-80"
+          onClick={() => top_ticker && onSelectTicker?.(top_ticker)}
+        />
+        {width > 50 && height > 30 && (
+          <text x={x + 4} y={y + 14} fill="#fff" fontSize={10} fontFamily="monospace" fontWeight="bold">
+            {name.substring(0, Math.floor(width / 6))}
+          </text>
+        )}
+        {width > 60 && height > 45 && (
+           <text x={x + 4} y={y + 26} fill="rgba(255,255,255,0.7)" fontSize={8} fontFamily="monospace">
+            {weight}% Mkt
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-black border border-border-custom p-2 font-mono text-[10px]">
+          <div className="font-bold text-white mb-1">{data.name}</div>
+          <div className={`font-black ${data.net_flow > 0 ? 'text-acc2' : 'text-acc3'}`}>
+            FLOW: {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(data.net_flow)} IDR
+          </div>
+          <div className="text-[#888] mt-1">Weight: {data.weight}%</div>
+          <div className="text-[#888]">Top Ticker: <span className="text-acc">{data.top_ticker || 'N/A'}</span></div>
+          <div className="text-[#555] text-[8px] mt-2 pt-1 border-t border-[#333]">Flow relative to 30D Avg Baseline</div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="p-2 h-full flex flex-col font-mono">
-      <h2 className="text-[10px] font-bold text-acc mb-2 uppercase tracking-widest border-b border-acc/20 pb-1">Sector Accumulation Heatmap (30D)</h2>
+    <div className="p-4 h-full flex flex-col font-mono">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-[10px] font-bold text-acc uppercase tracking-widest">Sector Accumulation Treemap (30D)</h2>
+        <div className="text-[8px] text-[#666] flex gap-2">
+           <span>SIZE: Market Cap</span>
+           <span>COLOR: Net Flow vs Baseline</span>
+        </div>
+      </div>
       
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-acc text-[10px] animate-pulse">AGGREGATING SECTOR FLOWS...</div>
       ) : data.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-[#444] text-[10px] italic">NO SECTOR ACTIVITY DATA AVAILABLE</div>
       ) : (
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 overflow-auto">
-          {(() => {
-            const totalMarketCapAll = data.reduce((acc, s) => acc + (s.total_market_cap || 0), 0);
-            return data.map((s, i) => {
-              const maxFlow = Math.max(...data.map(d => Math.abs(d.net_flow)));
-              const barWidth = (Math.abs(s.net_flow) / maxFlow) * 100;
-              const sectorWeight = totalMarketCapAll > 0 ? (s.total_market_cap / totalMarketCapAll) * 100 : 0;
-
-              return (
-                <div key={i} className={`border border-border-custom p-3 flex flex-col relative overflow-hidden ${s.net_flow > 0 ? 'bg-acc2/5' : 'bg-acc3/5'}`}>
-                  {/* Visual Flow Bar */}
-                  <div 
-                    className={`absolute bottom-0 left-0 h-1 transition-all duration-1000 ${s.net_flow > 0 ? 'bg-acc2 shadow-[0_0_5px_rgba(0,230,118,0.5)]' : 'bg-acc3 shadow-[0_0_5px_rgba(255,23,68,0.5)]'}`}
-                    style={{ width: `${barWidth}%` }}
-                  />
-                  
-                  <div className="flex justify-between items-start mb-2 relative z-10">
-                    <div className="text-[10px] font-black text-white truncate w-32 uppercase tracking-tighter">{s.sector}</div>
-                    <div className={`text-[9px] font-black px-1 ${s.net_flow > 0 ? 'bg-acc2 text-black' : 'bg-acc3 text-white'}`}>
-                      {s.net_flow > 0 ? '+' : ''}{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.net_flow)}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 flex flex-col justify-center items-center py-4 border border-white/5 bg-black/40 group cursor-pointer hover:border-acc/50 transition-colors relative z-10"
-                       onClick={() => s.top_ticker && onSelectTicker?.(s.top_ticker)}
-                  >
-                    <div className="text-[8px] text-[#555] uppercase font-bold mb-1">Top Sector Mover</div>
-                    <div className="text-lg font-black text-white tracking-tighter group-hover:text-acc underline decoration-acc/30">{s.top_ticker || 'N/A'}</div>
-                  </div>
-
-                  <div className="mt-3 space-y-1.5 relative z-10 border-t border-white/5 pt-2">
-                    <div className="flex justify-between items-center text-[8px]">
-                       <span className="text-[#666] uppercase">52W Range</span>
-                       <span className="text-fg font-bold">
-                         {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_low)} 
-                         <span className="mx-1 opacity-30">-</span> 
-                         {new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_52w_high)}
-                       </span>
-                    </div>
-                    <div className="flex justify-between items-center text-[8px]">
-                       <span className="text-[#666] uppercase">Avg Daily Vol</span>
-                       <span className="text-[#888]">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(s.avg_volume)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[8px]">
-                       <span className="text-[#666] uppercase">Sector Weight</span>
-                       <span className="text-acc font-bold">{sectorWeight.toFixed(2)}%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-2 pt-1 flex justify-between items-center relative z-10">
-                    <span className="text-[8px] text-[#444] font-bold tracking-widest">{s.trade_count} NODES</span>
-                    <span className={`text-[8px] font-black tracking-widest ${s.sentiment === 'BULLISH' ? 'text-acc2' : 'text-acc3'}`}>{s.sentiment}</span>
-                  </div>
-                </div>
-              );
-            });
-          })()}
+        <div className="flex-1 border border-border-custom bg-black relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <Treemap
+              data={data}
+              dataKey="size"
+              aspectRatio={4 / 3}
+              stroke="#fff"
+              content={<CustomizedContent />}
+            >
+              <Tooltip content={<CustomTooltip />} />
+            </Treemap>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
@@ -419,47 +454,166 @@ export const EventView = ({ onSelectTicker }: { onSelectTicker?: (t: string) => 
                     <>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Underwriter</div>
-                        <div className="text-[9px] font-bold text-white">{event.underwriter}</div>
+                        <div className="text-[9px] font-bold text-white">{event.underwriter || '-'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Price Range</div>
-                        <div className="text-[9px] font-bold text-acc2">{event.offering_price_range}</div>
+                        <div className="text-[9px] font-bold text-acc2">{event.offering_price_range || '-'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Total Shares</div>
-                        <div className="text-[9px] font-bold text-white">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.total_shares)}</div>
+                        <div className="text-[9px] font-bold text-white">{event.total_shares ? new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.total_shares) : '-'}</div>
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Acquirer</div>
-                        <div className="text-[9px] font-bold text-white">{event.acquirer}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PE)</div>
+                        <div className="text-[9px] font-bold text-white">{event.pe_multiple ? `${event.pe_multiple}x` : 'PENDING API'}</div>
                       </div>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Target</div>
-                        <div className="text-[9px] font-bold text-white">{event.target}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PB)</div>
+                        <div className="text-[9px] font-bold text-white">{event.pb_multiple ? `${event.pb_multiple}x` : 'PENDING API'}</div>
                       </div>
                       <div>
-                        <div className="text-[7px] text-[#555] uppercase">Fair Value (KJPP)</div>
-                        <div className="text-[9px] font-bold text-acc2">{new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.fair_value)}</div>
+                        <div className="text-[7px] text-[#555] uppercase">Unaffected Premium 1D</div>
+                        <div className={`text-[9px] font-bold ${event.premium_1d > 0 ? 'text-acc2' : event.premium_1d < 0 ? 'text-[#ff4444]' : 'text-white'}`}>
+                           {event.premium_1d ? `${(event.premium_1d * 100).toFixed(2)}%` : 'PENDING API'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[7px] text-[#555] uppercase">Trailing Insider Flow (60D)</div>
+                        <div className="text-[9px] font-bold text-acc2">{event.pre_event_insider_volume ? new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(event.pre_event_insider_volume) : '0'} shares</div>
                       </div>
                     </>
                   )}
                   <div>
-                    <div className="text-[7px] text-[#555] uppercase">Status</div>
-                    <div className={`text-[9px] font-black ${event.status === 'COMPLETED' ? 'text-acc2' : 'text-acc'}`}>{event.status}</div>
+                    <div className="text-[7px] text-[#555] uppercase">Timeline State</div>
+                    <div className={`text-[9px] font-black ${event.status === 'COMPLETED' ? 'text-acc2' : 'text-acc'}`}>[{event.event_version}] {event.status}</div>
                   </div>
                 </div>
+
+                {/* Transition Log / Audit Trail */}
+                {event.state_transition_log && (
+                  <div className="mt-2 border-t border-white/5 pt-2">
+                    <div className="text-[7px] text-[#555] uppercase mb-1">State Transition Audit Trail</div>
+                    <div className="flex gap-2 text-[8px] overflow-x-auto text-[#888]">
+                      {JSON.parse(event.state_transition_log).map((log: any, idx: number) => (
+                        <div key={idx} className="flex items-center">
+                           <span>{log.to} ({log.date})</span>
+                           {idx < JSON.parse(event.state_transition_log).length - 1 && <span className="mx-2 text-acc/50">→</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
-              <div className="md:w-32 flex items-center justify-center border-l border-white/5 pl-4">
-                 <a href={event.source_url} target="_blank" rel="noreferrer" className="text-[8px] border border-acc/30 px-2 py-1 hover:bg-acc hover:text-black transition-colors uppercase font-bold">View Prospectus</a>
+              <div className="md:w-32 flex flex-col items-center justify-center border-l border-white/5 pl-4 space-y-2">
+                 <a href={event.source_url} target="_blank" rel="noreferrer" className="text-[8px] border border-acc/30 px-2 py-1 hover:bg-acc hover:text-black transition-colors uppercase font-bold text-center w-full block">Source Truth</a>
+                 <div className="text-[7px] text-[#444] uppercase tracking-tighter text-center">SHA256 <br/>{event.source_hash ? event.source_hash.substring(0, 8) : 'N/A'}</div>
               </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+// --- ALERT-SYS-01: Alert Rule Engine View ---
+export const AlertView = () => {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [newAlert, setNewAlert] = useState({ ticker: '', threshold: 1000000000, type: 'BUY' });
+
+  useEffect(() => {
+    const savedAlerts = JSON.parse(localStorage.getItem('alert_rules') || '[]');
+    setAlerts(savedAlerts);
+  }, []);
+
+  const saveAlerts = (updated: any[]) => {
+    setAlerts(updated);
+    localStorage.setItem('alert_rules', JSON.stringify(updated));
+  };
+
+  const addAlert = () => {
+    if (!newAlert.ticker) return;
+    const updated = [...alerts, { ...newAlert, id: Date.now() }];
+    saveAlerts(updated);
+    setNewAlert({ ticker: '', threshold: 1000000000, type: 'BUY' });
+  };
+
+  const removeAlert = (id: number) => {
+    saveAlerts(alerts.filter(a => a.id !== id));
+  };
+
+  return (
+    <div className="p-4 font-mono space-y-6">
+      <h2 className="text-[10px] font-bold text-acc mb-4 uppercase tracking-widest border-b border-acc/20 pb-1">Asymmetric Alert Engine (Local)</h2>
+      
+      <div className="terminal-panel p-4 bg-acc/5 border border-acc/20 space-y-4">
+        <h3 className="text-[9px] font-bold text-white uppercase">Create New Rule</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="text-[7px] text-[#666] block uppercase">Ticker</label>
+            <input 
+              type="text" 
+              value={newAlert.ticker}
+              onChange={e => setNewAlert({...newAlert, ticker: e.target.value.toUpperCase()})}
+              className="bg-black border border-acc/30 text-acc text-[10px] p-1 w-full outline-none focus:border-acc"
+              placeholder="e.g. BBCA"
+            />
+          </div>
+          <div>
+            <label className="text-[7px] text-[#666] block uppercase">Type</label>
+            <select 
+              value={newAlert.type}
+              onChange={e => setNewAlert({...newAlert, type: e.target.value})}
+              className="bg-black border border-acc/30 text-acc text-[10px] p-1 w-full outline-none"
+            >
+              <option value="BUY">BUY_ACCUMULATION</option>
+              <option value="SELL">SELL_DISTRIBUTION</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[7px] text-[#666] block uppercase">Value Threshold (IDR)</label>
+            <input 
+              type="number" 
+              value={newAlert.threshold}
+              onChange={e => setNewAlert({...newAlert, threshold: parseInt(e.target.value)})}
+              className="bg-black border border-acc/30 text-acc text-[10px] p-1 w-full outline-none"
+            />
+          </div>
+          <div className="flex items-end">
+            <button 
+              onClick={addAlert}
+              className="bg-acc text-black font-bold text-[10px] px-4 py-1 hover:bg-white transition-colors uppercase w-full"
+            >
+              Deploy Rule
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-[9px] font-bold text-[#666] uppercase">Active Watchtowers</h3>
+        {alerts.length === 0 ? (
+          <div className="text-[#444] text-[10px] italic p-10 text-center border border-dashed border-[#222]">NO ACTIVE ALERT RULES</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {alerts.map(a => (
+              <div key={a.id} className="terminal-panel p-2 flex justify-between items-center bg-black border border-acc/10">
+                <div>
+                  <span className="text-white font-bold text-[10px]">{a.ticker}</span>
+                  <span className={`ml-2 text-[8px] px-1 ${a.type === 'BUY' ? 'bg-acc2/20 text-acc2' : 'bg-acc3/20 text-acc3'}`}>{a.type}</span>
+                  <div className="text-[8px] text-[#555]">THRESHOLD: {new Intl.NumberFormat('id-ID').format(a.threshold)} IDR</div>
+                </div>
+                <button onClick={() => removeAlert(a.id)} className="text-acc3 hover:text-white text-[10px]">TERMINATE</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

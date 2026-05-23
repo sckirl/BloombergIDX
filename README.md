@@ -1,136 +1,118 @@
-# 🇮🇩 IDX OpenInsider: Institutional Intelligence Engine
+# BloombergIDX: Indonesian Asymmetric Intelligence Terminal
 
-A real-time Indonesian insider trading intelligence platform that identifies high-conviction signals from Directors and Commissioners (Direksi/Komisaris) at the Indonesia Stock Exchange (IDX).
+BloombergIDX is an institutional-grade intelligence platform designed to identify asymmetric signals within the Indonesian equity market (IDX). Unlike standard stock dashboards, this system focuses on identifying "Smart Money" activity, insider accumulation, and stealth distribution patterns before they are fully priced in by the broader market.
 
-![Project Status](https://img.shields.io/badge/Status-Institutional--Grade-blue)
-![Data Recency](https://img.shields.io/badge/Data-April%202026-green)
-![Intelligence](https://img.shields.io/badge/Asymmetric--Edge-Enabled-orange)
+The platform provides a high-density, command-first interface inspired by the Bloomberg Terminal DNA, optimized for professional traders, quantitative analysts, and institutional desks.
 
-## Main Features
+---
 
-### 1. Insider Accumulation Price Map
-A Bloomberg-tier horizontal volume profile that plots exact price-volume clusters of insider transactions. Instantly identify the "Fundamental Floor" where the smartest money in Indonesia is accumulating shares relative to the current market price.
+## 1. Core Intelligence Modules
 
-### 2. Supply Choke & Absorption Ratio
-Calculates the **Absorption Ratio**: `(Total Insider Buys / 30-Day Average Daily Volume)`. Detects rare "Supply Choke" events where insiders absorb multiple days' worth of entire market liquidity, indicating massive conviction.
+### Insider Intelligence
+*   **Conviction Scoring**: Real-time analysis of Director and Commissioner disclosures using a weighted scoring model (Role, Value, RVOL, and Cluster Buy signals).
+*   **Accumulation Price Map**: Visual volume profile indicating the specific price levels where insiders are concentrating their capital.
+*   **Absorption Ratio**: A liquidity metric measuring insider buy volume relative to the 30-day Average Daily Volume (ADV).
 
-### 3. Cluster Buy Engine 🔥
-Identifies high-conviction accumulation patterns where multiple unique insiders (e.g., three different Directors) buy the same ticker within a rolling window.
+### Smart Money & Broker Flow
+*   **Bandar Proxy Detection**: Advanced rules-based detection of market-maker activity through broker concentration (HHI) and cross-trade patterns.
+*   **Broker Clustering**: Identifying coordinated accumulation across top-tier Indonesian sekuritas (brokers).
+*   **Stealth Accumulation Scanner**: Detection of positive net broker flow during periods of low price volatility.
 
-### 4. Stockbit "Trade" Integration
-Direct deep-linking to Stockbit Insider pages for every transaction, enabling instant cross-verification and one-click trade execution.
+### Corporate Event Intelligence
+*   **Temporal Event Lifecycle**: A versioned database tracking the full lifecycle of E-IPOs, Mergers, Acquisitions, and Divestments.
+*   **Valuation Engine**: Automated calculation of deal multiples (P/E, P/B, EV/EBITDA) and premiums relative to unaffected share prices.
+*   **Audit Transparency**: Direct "Source-to-State" linkage, providing original PDF snippets alongside extracted transaction terms.
 
-## 🚀 Core Features
+### AI Narrative Layer
+*   **Asynchronous NLP**: Powered by NVIDIA Nemotron-4b, providing concise, high-density summaries of complex filings.
+*   **Confidence Inheritance**: AI narratives strictly adhere to deterministic data confidence, using probabilistic language for lower-scored signals.
 
-- **Real-Time Data Ingestion:** Automated scraping of IDX "Keterbukaan Informasi" using Playwright to bypass modern anti-bot protections.
-- **Smart Scoring System:** Analyzes roles, transaction values, and patterns to assign 0-10+ Conviction Scores.
-- **Financial Terminal UI:** Modern, dark-mode dashboard built with Next.js (16+), featuring real-time filtering and responsive design.
-- **Network Agnostic:** Fully containerized with Docker for seamless access via Tailscale, Public IPs, or Private VPNs.
+---
 
-## 🛠 Tech Stack
+## 2. Technical Stack
 
-- **Frontend:** Next.js 16 (TypeScript, Tailwind CSS, Recharts)
-- **Backend:** FastAPI (Python 3.11), SQLAlchemy, yfinance (Liquidity Data)
-- **Database:** PostgreSQL 15 (PostGIS-ready)
-- **Scraper:** Playwright (Headless Chromium), pdfplumber, Tesseract OCR
-- **Orchestration:** Docker Compose
+*   **Frontend**: Next.js 14 (App Router), Tailwind CSS, TanStack Table, Recharts.
+*   **Backend**: FastAPI (Python 3.11), SQLAlchemy 2.0.
+*   **Data Pipeline**: Playwright (Playwright-context fetches), BeautifulSoup4, PDFPlumber.
+*   **Intelligence**: NVIDIA Build API (Nemotron-mini-4b-instruct), yfinance.
+*   **Persistence**: PostgreSQL (Core Data), Redis (Narrative Cache & Task Queue).
+*   **Infrastructure**: Docker, Docker Compose.
 
-## 📦 Quick Start
+---
 
-### 1. Prerequisites
-- Docker & Docker Compose.
-- Tailscale (recommended for remote access).
+## 3. Local Deployment (Docker)
 
-### 2. Launch
-```bash
-docker compose up -d
-```
-The dashboard will be available at `http://localhost:8100` (or your Server IP).
+To run the terminal locally using Docker, follow these steps:
 
-## 🧠 Agent Orchestration & Workflow
+### Prerequisites
+*   Docker and Docker Compose installed on your machine.
+*   An NVIDIA API Key from build.nvidia.com (for the AI Narrative layer).
 
-This system is built and maintained by a coordinated team of autonomous AI agents.
+### Steps
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/sckirl/BloombergIDX.git
+    cd BloombergIDX
+    ```
 
-```mermaid
-graph TD
-    %% Global Styles
-    classDef supervisor fill:#6a1b9a,stroke:#4a148c,color:#fff,stroke-width:4px;
-    classDef pm fill:#fbc02d,stroke:#f57f17,color:#000,font-weight:bold;
-    classDef ba fill:#0277bd,stroke:#01579b,color:#fff;
-    classDef dev fill:#2e7d32,stroke:#1b5e20,color:#fff;
-    classDef qa fill:#c62828,stroke:#b71c1c,color:#fff;
-    classDef infrastructure fill:#37474f,stroke:#263238,color:#fff,stroke-dasharray: 5 5;
-    classDef external fill:#4527a0,stroke:#311b92,color:#fff;
+2.  **Configure Environment**:
+    Create a `.env` file in the root directory:
+    ```bash
+    NVIDIA_API_KEY=your_api_key_here
+    DATABASE_URL=postgresql://user:password@openinsider-db:5432/openinsider
+    REDIS_URL=redis://openinsider-redis:6379/0
+    ```
 
-    subgraph User_Interface [Institutional Intelligence Layer]
-        User((User/Owner))
-        Tailscale[Tailscale / Remote Access]:::infrastructure
-        ProdURL[Next.js Dashboard :8100]
-        TickerDrawer[Institutional Drawer: Map/Absorption]:::pm
-        Stockbit[Stockbit Verification]:::external
-    end
+3.  **Launch the Strike**:
+    ```bash
+    docker compose up -d --build
+    ```
 
-    subgraph Control_Plane [Command & Control]
-        Supervisor[Gemini CLI / Lead Architect]:::supervisor
-        PM[Project Manager Agent]:::pm
-    end
+4.  **Access the Platform**:
+    *   **Terminal UI**: http://localhost:8100
+    *   **API Intelligence**: http://localhost:8000/docs
 
-    subgraph Intelligence_Layer [Data & Signal Logic]
-        BA[Business Analyst / Researcher]:::ba
-        Scoring[Smart Scoring & Cluster Engine]
-        AbsRatio[Absorption Ratio Math]:::ba
-        PriceMap[Accumulation Price Map Logic]:::ba
-    end
+---
 
-    subgraph Execution_Core [Engineering & API Delivery]
-        DEV[Developer Agent]:::dev
-        API[FastAPI Backend :8000]
-        Scraper[Multi-threaded PDF/HTML Scraper]
-        YFinance[yfinance Market Data API]:::external
-        Scheduler[Randomized Scheduler 1AM-5AM]:::infrastructure
-    end
+## 4. Cloud Deployment (Google Cloud Run)
 
-    subgraph Data_Layer [Source & Storage]
-        IDX_API[(IDX 2026 API / PDF)]
-        DB[(PostgreSQL)]
-    end
+BloombergIDX is architected for low-cost, high-efficiency execution on Google Cloud Platform.
 
-    subgraph Validation_Layer [Quality & Integrity]
-        QA[QA Engineer Agent]:::qa
-    end
+### Steps
+1.  **Containerize**: Build and push images to Google Artifact Registry.
+2.  **Database**: Provision a Cloud SQL (PostgreSQL) instance.
+3.  **Caching**: Provision a Memorystore (Redis) instance.
+4.  **Deployment**:
+    *   Deploy the backend to Cloud Run. Ensure you set the `DATABASE_URL` and `REDIS_URL` environment variables.
+    *   Deploy the frontend to Cloud Run (or Vercel). Set `NEXT_PUBLIC_API_URL` to your backend's Cloud Run URL.
+5.  **Scheduling**: Use Google Cloud Scheduler to trigger the `/insider/scrape` and `/insider/enrich` endpoints every 15 minutes.
 
-    %% Workflow Flow
-    User -->|Access via| Tailscale
-    Tailscale -->|Browser| ProdURL
-    ProdURL -->|Inspect Ticker| TickerDrawer
-    TickerDrawer -->|Execution| Stockbit
-    
-    User -->|Directives| Supervisor
-    Supervisor -->|Plan Mode| PM
-    PM -->|Features| BA
-    BA -->|Data Logic| Scoring
-    BA -->|Institutional Specs| AbsRatio
-    BA -->|Visual Logic| PriceMap
-    
-    PriceMap -->|API Schema| DEV
-    AbsRatio -->|API Schema| DEV
-    
-    DEV -->|Implement| API
-    DEV -->|Ingestion| Scraper
-    
-    API <-->|Fetch Price History| YFinance
-    API <-->|Serve Aggregates| DB
-    Scraper -->|Ingest| IDX_API
-    Scraper -->|Store| DB
-    
-    Scheduler -->|Trigger| Scraper
-    
-    %% QA Loop
-    QA -->|Institutional Data Tests| API
-    QA -->|Visual Regression| TickerDrawer
-    QA -->|Schema Integrity| DB
-    QA -->|UAT Reports| Supervisor
+---
 
-    %% Connectivity
-    ProdURL <-->|NEXT_PUBLIC_API_URL| API
-```
+## 5. Terminal Navigation & Commands
+
+The terminal is optimized for keyboard-first operation. Use `ALT+S` to focus the Command Bar.
+
+| Command | Action |
+| :--- | :--- |
+| `INSIDER [TICKER]` | Drill down into the specific insider feed for a ticker. |
+| `FLOW [TICKER]` | Analyze real-time broker concentration and smart money flow. |
+| `ANOMALY` | Open the Market Anomaly scanner (RVOL/Sigma outliers). |
+| `MAP` | Open the proportional Sector Net-Flow Heatmap. |
+| `EVENT` | View the Corporate Action Deal-Sheet (IPO/Mergers). |
+| `WL ADD [TICKER]` | Add a security to your persistent local watchlist. |
+| `WL` | Open your institutional watchlist. |
+| `ALT+Q` | Reset terminal to the main intelligence feed. |
+| `ESC` | Close the active intelligence drawer. |
+
+---
+
+## 6. Project Status & KPIs
+
+*   **Audit Status**: CERTIFIED (May 12, 2026)
+*   **KPI Certification**: 100% (Phases 1-4 Complete)
+*   **Data Veracity**: Validated through Zero-Trust 4V Audit.
+*   **Platform Mandate**: Stability First; 10px Mono; Zero Placeholder Data.
+
+---
+*Developed for professional Indonesian market analysis.*
