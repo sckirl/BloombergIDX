@@ -26,6 +26,7 @@
 | **CONF-01** | **HIGH** | AI Logic | **Confidence Decoupling.** AI narratives strictly inherit and display `confidence_score` dynamically in the Institutional Drawer. | **RESOLVED** |
 | **PHANTOM-01** | **HIGH** | Implementation | **Phantom Feature (PEE).** `ENTITY-MAP-01` developed. Politically Exposed Entity mapping is 100% backend-supported via `/insider/entity/` endpoint. | **RESOLVED** |
 | **SER-01** | **HIGH** | Backend | **Float Division Crashing.** `NaN`/`Inf` serialization safely sanitized to 0.0 in `intelligence.py`. | **RESOLVED** |
+| **CLD-RUN-01** | **CRITICAL** | Infra | **Port 8080 Collision.** Container failed to start in Cloud Run because it was hardcoded to port 8000/8100. | **RESOLVED** |
 | **DATA-GAP-01** | **MED** | API | **404 on Insufficient Data.** Handled gracefully returning `{"status": "insufficient_data"}` without crashing. | **RESOLVED** |
 
 ---

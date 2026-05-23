@@ -12,4 +12,4 @@ COPY . .
 EXPOSE 8100
 
 # Start command
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npm run dev -- -p ${PORT:-8100}"]
