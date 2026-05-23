@@ -65,21 +65,36 @@ class E2EDataIntegrityTests(unittest.TestCase):
         self.assertEqual(float(result["pe_multiple"]), 15.5)
         self.assertEqual(float(result["premium_1d"]), 0.1)
 
-    @patch('backend.openbb_adapter.requests.get')
-    def test_openbb_adapter(self, mock_get):
-        import os
+    @patch('backend.openbb_adapter.SessionLocal')
+    def test_openbb_adapter(self, mock_session_local):
         import backend.openbb_adapter as adapter
-        adapter.OPENBB_PAT = "test_pat" # Override module level var
 
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "results": [{"pe_ratio": 10}, {"pe_ratio": 20}]
-        }
-        mock_get.return_value = mock_resp
+        mock_db = MagicMock()
+        mock_session_local.return_value = mock_db
+
+        # Mock the scalar() returns for avg_pe and avg_pb
+        mock_pe_query = MagicMock()
+        mock_pe_query.scalar.return_value = 15.0
+
+        mock_pb_query = MagicMock()
+        mock_pb_query.scalar.return_value = 2.0
+
+        # Setup side effect to return different queries based on the func being called
+        def query_side_effect(*args, **kwargs):
+            # In actual implementation: db.query(func.avg(Stock.trailing_pe))
+            # Just keeping it simple: first query is PE, second is PB
+            if mock_db.query.call_count == 1:
+                return mock_pe_query
+            else:
+                return mock_pb_query
+
+        mock_db.query.side_effect = query_side_effect
+        mock_pe_query.filter.return_value = mock_pe_query
+        mock_pb_query.filter.return_value = mock_pb_query
 
         res = adapter.fetch_sector_multiples("Financials")
         self.assertEqual(res["sector_pe_avg"], 15.0)
+        self.assertEqual(res["sector_pb_avg"], 2.0)
 
 if __name__ == '__main__':
     unittest.main()
