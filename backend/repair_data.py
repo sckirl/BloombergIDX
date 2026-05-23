@@ -1,97 +1,45 @@
-import os
-import datetime
-from sqlalchemy.orm import Session
-from backend.database import SessionLocal
-from backend.models import InsiderTransaction
-from backend.utils import get_price_on_date, calculate_ownership_change, calculate_score
+from sqlalchemy import text
+from backend.database import SessionLocal, engine
+from backend.logger import logger
 
-from sqlalchemy import or_
-
-def repair_zero_prices():
+def purge_wrongful_data():
     """
-    Finds transactions with price=0 OR value=0 and attempts to backfill them.
-    Also removes misparsed records with reserved keywords or obviously wrong tickers.
+    Surgically removes all intelligence nodes to prepare for a truthful re-scrape.
+    Preserves the 'stocks' table to save API credits on metadata.
     """
+    print("--- 🏛️ BloombergIDX Data Purge Strike ---")
+    print("Targeting: Hallucinated 2026 Intelligence Nodes")
+    
     db = SessionLocal()
-    RESERVED_KEYWORDS = ["KETR", "LAPP", "LAMP", "BERI", "DATA", "INFO"]
     try:
-        # 1. Cleanup misparsed
-        print("Cleaning up misparsed records...")
-        deleted = db.query(InsiderTransaction).filter(
-            or_(
-                InsiderTransaction.ticker.in_(RESERVED_KEYWORDS),
-                InsiderTransaction.insider_name.contains("Keterbukaan"),
-                InsiderTransaction.insider_name.contains("Informasi")
-            )
-        ).delete(synchronize_session=False)
+        # Use a transaction block for safety
+        # TRUNCATE is faster and resets IDs. CASCADE handles foreign keys.
+        tables = [
+            "narratives",
+            "insider_transactions",
+            "broker_clusters",
+            "smart_money_scores",
+            "signals",
+            "corporate_events",
+            "event_snapshots"
+        ]
+        
+        for table in tables:
+            print(f"Purging {table}...")
+            db.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE;"))
+        
         db.commit()
-        print(f"Deleted {deleted} misparsed records.")
-
-        # 2. Fix 0 or missing values
-        problematic = db.query(InsiderTransaction).filter(
-            or_(
-                InsiderTransaction.price == 0,
-                InsiderTransaction.price.is_(None),
-                InsiderTransaction.value == 0,
-                InsiderTransaction.value.is_(None)
-            )
-        ).all()
-        print(f"Found {len(problematic)} transactions with price or value 0/None.")
+        print("✅ SUCCESS: Intelligence tables are now EMPTY and READY for seeding.")
         
-        fixed_count = 0
-        for t in problematic:
-            if not t.ticker or t.ticker == "UNKNOWN": continue
-            
-            modified = False
-
-            # Get Price if missing
-            if t.price is None or t.price == 0:
-                price = get_price_on_date(t.ticker, t.date)
-                if price > 0:
-                    t.price = price
-                    modified = True
-            
-            # Recalculate value if missing
-            if t.value is None or t.value == 0:
-                if t.price is not None and t.price > 0:
-                    if t.shares is None or t.shares == 0:
-                        t.shares = 1.0 # Minimal fallback
-                    t.value = t.shares * t.price
-                    modified = True
-
-            if modified:
-                fixed_count += 1
-                print(f"  Fixed {t.ticker} on {t.date}: Price set to {t.price}, Value set to {t.value}")
-
-                # Recalculate Score
-                t_dict = {c.name: getattr(t, c.name) for c in t.__table__.columns}
-                score, reasons = calculate_score(t_dict, db=db)
-                t.score = score
-                import json
-                t.score_reasons = json.dumps(reasons)
-
-        db.commit()
-        print(f"Repair finished. {fixed_count} transactions updated.")
-        
-        # Also recalculate ownership_change_pct for non-zero prices that were missing it
-        missing_pct = db.query(InsiderTransaction).filter(
-            InsiderTransaction.ownership_change_pct == 0,
-            InsiderTransaction.ownership_before > 0,
-            InsiderTransaction.ownership_after > 0
-        ).all()
-        
-        if missing_pct:
-            print(f"Backfilling {len(missing_pct)} ownership change percentages...")
-            for t in missing_pct:
-                t.ownership_change_pct = calculate_ownership_change(t.ownership_before, t.ownership_after)
-            db.commit()
-            print("Done.")
-
     except Exception as e:
-        print(f"Repair failed: {e}")
+        print(f"❌ FATAL ERROR during purge: {e}")
         db.rollback()
     finally:
         db.close()
 
 if __name__ == "__main__":
-    repair_zero_prices()
+    confirm = input("CRITICAL: This will wipe all transaction and event data. Proceed? (y/N): ")
+    if confirm.lower() == 'y':
+        purge_wrongful_data()
+    else:
+        print("Purge aborted.")

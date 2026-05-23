@@ -1709,5 +1709,103 @@
         "price": 151.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "KPEI": {
+        "last_updated": "2026-05-24",
+        "shares": 4.0,
+        "price": 4.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "HUMI": {
+        "last_updated": "2026-05-24",
+        "shares": 1337287965.0,
+        "price": 167.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "TPIA": {
+        "last_updated": "2026-05-24",
+        "shares": 625000.0,
+        "price": 2660.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "NPWP": {
+        "last_updated": "2026-05-24",
+        "shares": 89.6,
+        "price": 60.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "HRUM": {
+        "last_updated": "2026-05-24",
+        "shares": 350000.0,
+        "price": 735.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "DKFT": {
+        "last_updated": "2026-05-24",
+        "shares": 121557400.0,
+        "price": 670.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "AGMS": {
+        "last_updated": "2026-05-24",
+        "shares": 1.0,
+        "price": 1.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "ESDM": {
+        "last_updated": "2026-05-24",
+        "shares": 117.0,
+        "price": 14625.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "PURA": {
+        "last_updated": "2026-05-24",
+        "shares": 9529400.0,
+        "price": 40.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "DILD": {
+        "last_updated": "2026-05-24",
+        "shares": 15179600.0,
+        "price": 123.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "BABY": {
+        "last_updated": "2026-05-24",
+        "shares": 2179680.0,
+        "price": 216.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "BJBR": {
+        "last_updated": "2026-05-24",
+        "shares": 133404.0,
+        "price": 785.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "FORE": {
+        "last_updated": "2026-05-24",
+        "shares": 4446300.0,
+        "price": 980.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "KBLI": {
+        "last_updated": "2026-05-24",
+        "shares": 14246270.0,
+        "price": 326.0,
+        "date_found": true,
+        "total_value_found": true
     }
 }
