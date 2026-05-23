@@ -1,0 +1,13 @@
+[Unit]
+Description=Run BloombergIDX Strike every 6 hours with randomization
+
+[Timer]
+# Run every 6 hours
+OnUnitActiveSec=6h
+# Randomized start to prevent IP flags (0 to 60 minutes)
+RandomizedDelaySec=3600
+# Start immediately on boot
+OnBootSec=5min
+
+[Install]
+WantedBy=timers.target
