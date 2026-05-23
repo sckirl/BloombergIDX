@@ -1,4 +1,5 @@
 import asyncio
+import os
 from playwright.async_api import async_playwright
 
 async def inspect_e_ipo():
@@ -24,7 +25,8 @@ async def inspect_e_ipo():
         except Exception as e:
             print(f"Error: {e}")
             # Try to take a screenshot to see what's happening
-            # await page.screenshot(path="e_ipo_debug.png")
+            if os.environ.get("DEBUG") == "1":
+                await page.screenshot(path="e_ipo_debug.png")
             
         await browser.close()
 
