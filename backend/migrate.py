@@ -85,6 +85,11 @@ def migrate():
         add_column("corporate_events", "last_seen_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         add_column("corporate_events", "rationale_ai", "TEXT")
 
+        # PriceTick upgrades
+        add_column("price_ticks", "foreign_buy", "BIGINT DEFAULT 0")
+        add_column("price_ticks", "foreign_sell", "BIGINT DEFAULT 0")
+        add_column("price_ticks", "foreign_net", "BIGINT DEFAULT 0")
+
         # Other table upgrades
         add_column("insider_transactions", "filing_hash", "VARCHAR(64)")
         add_column("insider_transactions", "date_inferred", "BOOLEAN DEFAULT FALSE")

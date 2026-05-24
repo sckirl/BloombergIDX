@@ -272,11 +272,15 @@ REQUIRED PM OUTPUTS:
 1. **Stability First (MANDATORY):** If a function or module has passed QA and is in a stable state, **DO NOT CHANGE IT** unless strictly required for a critical bug fix or a mandatory contract update. 
 2. **Regression Prevention:** New features must be implemented via composition or separate modules rather than modifying stable core logic. Modification of stable code is the primary cause of system-wide failures.
 3. **Institutional Data Quality:** Every data extraction pass must meet Bloomberg-grade precision. Check every menu, every field, and every aggregation before marking a function as "Done".
+4. **Market-Wide Veracity:** Intelligence modules (Flow, Anomaly, Map) must process the ENTIRE stock ledger. Targeted "strikes" are only permitted for debugging, never for final delivery.
+5. **Batch Efficiency:** Browser-based data extraction must use global daily payloads rather than per-ticker loops to prevent session timeouts.
 
 ### NEGATIVE MEMORY (DO NOT REPEAT)
 - **Migration Drift:** Never add columns to SQLAlchemy models without immediately executing a schema migration in the production/docker environment. This caused the "Disappearing Data" crisis of May 11, 2026.
 - **Phantom Implementation:** Never report a feature as "Done" if it only contains UI shells or hardcoded mock responses. End-to-end data flow must be verified.
-### EVENT INTELLIGENCE RULES (Institutional Mandate)
+- **Tactical Hallucination:** Never report a mission as successful based on a tiny subset of data (e.g., 3 tickers) when the mandate was market-wide. This is classified as a trust violation.
+- **Synchronous AI:** Never allow the AI layer to block the main terminal UI or core API responsiveness.
+
 
 1. **Temporal Sovereignty:** Corporate events must preserve full transition history. The latest state alone is insufficient.
 2. **Auditability:** Event systems require temporal auditability (versioning, timestamps, source snapshots).

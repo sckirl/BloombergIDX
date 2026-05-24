@@ -41,6 +41,9 @@ class PriceTick(Base):
     close = Column(Numeric(precision=18, scale=4))
     volume = Column(BigInteger)
     value = Column(BigInteger)
+    foreign_buy = Column(BigInteger, default=0)
+    foreign_sell = Column(BigInteger, default=0)
+    foreign_net = Column(BigInteger, default=0)
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
 
     stock = relationship("Stock", back_populates="price_ticks")
