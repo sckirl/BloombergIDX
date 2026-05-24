@@ -349,8 +349,8 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str, issuer_na
 def run_scraper(full_year=False):
     logger.info(f"Starting Scraper (Full Year: {full_year})")
     db = SessionLocal()
-
-    with Stealth().use_sync(sync_playwright()) as p:
+    
+    with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
         page = context.new_page()
@@ -445,8 +445,5 @@ def run_scraper(full_year=False):
     logger.info("Scraper Finished.")
 
 if __name__ == "__main__":
-    import sys
-    run_scraper(full_year="--full-year" in sys.argv)
-in__":
     import sys
     run_scraper(full_year="--full-year" in sys.argv)

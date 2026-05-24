@@ -21,7 +21,7 @@ def scrape_e_ipo():
     events = []
     logger.info("Starting E-IPO scraper...")
     
-    with Stealth().use_sync(sync_playwright()) as p:
+    with sync_playwright() as p:
         try:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
@@ -119,7 +119,7 @@ def scrape_idx_mergers():
     events = []
     logger.info("Starting IDX Merger scraper...")
     
-    with Stealth().use_sync(sync_playwright()) as p:
+    with sync_playwright() as p:
         try:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")

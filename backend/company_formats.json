@@ -1856,5 +1856,138 @@
         "price": 1735.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "NISP": {
+        "last_updated": "2026-05-24",
+        "shares": 36000.0,
+        "price": 1325.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "SMSM": {
+        "last_updated": "2026-05-24",
+        "shares": 211800.0,
+        "price": 1795.204345703125,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "KSEI": {
+        "last_updated": "2026-05-24",
+        "shares": 1.0,
+        "price": 32.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "STOC": {
+        "last_updated": "2026-05-24",
+        "shares": 13.25,
+        "price": 25.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "MEGA": {
+        "last_updated": "2026-05-24",
+        "shares": 11740923365.0,
+        "price": 2100.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "UUPT": {
+        "last_updated": "2026-05-24",
+        "shares": 6.0,
+        "price": 19.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "SIMP": {
+        "last_updated": "2026-05-24",
+        "shares": 8189500.0,
+        "price": 860.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "SKRN": {
+        "last_updated": "2026-05-24",
+        "shares": 200000000.0,
+        "price": 510.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "SMGR": {
+        "last_updated": "2026-05-24",
+        "shares": 6572000.0,
+        "price": 2343.255859375,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "UFOE": {
+        "last_updated": "2026-05-24",
+        "shares": 90000.0,
+        "price": 157.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "KEJU": {
+        "last_updated": "2026-05-24",
+        "shares": 200900.0,
+        "price": 539.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "BELI": {
+        "last_updated": "2026-05-24",
+        "shares": 67200.0,
+        "price": 404.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "STTP": {
+        "last_updated": "2026-05-24",
+        "shares": 4832800.0,
+        "price": 9750.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "RJRR": {
+        "last_updated": "2026-05-24",
+        "shares": 1.0,
+        "price": 1.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "ZINC": {
+        "last_updated": "2026-05-24",
+        "shares": 380468239.0,
+        "price": 30.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "ENRG": {
+        "last_updated": "2026-05-24",
+        "shares": 84375000.0,
+        "price": 1885.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "SIUP": {
+        "last_updated": "2026-05-24",
+        "shares": 665.0,
+        "price": 108.9,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "COWL": {
+        "last_updated": "2026-05-24",
+        "shares": 4871214021.0,
+        "price": 50.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "ACGS": {
+        "last_updated": "2026-05-24",
+        "shares": 20.0,
+        "price": 15.0,
+        "date_found": true,
+        "total_value_found": true
     }
 }

@@ -17,7 +17,6 @@ pytesseract
 pdf2image
 Pillow
 playwright==1.41.2
-playwright-stealth
 yfinance
 redis
 # openbb removed due to availability issues
