@@ -186,7 +186,9 @@ def generate_broker_flow_proxy(db: Session):
                 
                 if not existing:
                     # Distribute net flow
-                    dist_net = int(net_flow / 2)
+                    # IDX API reports volume in shares, but institutional flow is measured in high nominals.
+                    # We ensure the nominals reflect billions (Miliar) not just millions (Juta).
+                    dist_net = int((net_flow * tick.close) / 2)
                     dist_buy = abs(dist_net) if net_flow > 0 else 0
                     dist_sell = abs(dist_net) if net_flow < 0 else 0
                     
@@ -198,8 +200,8 @@ def generate_broker_flow_proxy(db: Session):
                         buy_value=dist_buy,
                         sell_value=dist_sell,
                         net_value=dist_net,
-                        buy_volume=int(dist_buy / float(tick.close)) if tick.close > 0 else 0,
-                        sell_volume=int(dist_sell / float(tick.close)) if tick.close > 0 else 0
+                        buy_volume=abs(int(net_flow / 2)) if net_flow > 0 else 0,
+                        sell_volume=abs(int(net_flow / 2)) if net_flow < 0 else 0
                     )
                     db.add(proxy)
                     proxies_created += 1

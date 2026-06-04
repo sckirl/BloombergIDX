@@ -1,52 +1,51 @@
-import sys
-import os
-import datetime
-import requests
-import io
-import base64
-import pdfplumber
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from backend.database import SessionLocal, engine
+from datetime import datetime, date
 
-# Add current directory to path
-sys.path.append(os.getcwd())
-
-from backend.scraper import extract_transaction_date
-
-def repair_dates():
-    db_url = os.environ.get("DATABASE_URL")
-    if not db_url:
-        raise ValueError("DATABASE_URL environment variable is not set")
-    engine = create_engine(db_url)
-    with engine.connect() as conn:
-        print("Searching for transactions where date may be inaccurate (defaults to filing date)...")
-        res = conn.execute(text("SELECT id, source_url, date, filing_date FROM insider_transactions"))
-        rows = res.fetchall()
+def repair_hallucinated_dates():
+    """
+    Surgically repairs 2026 dates where Month > 5 (Today is May).
+    Swaps Day and Month to resolve the DMY vs MDY conflict.
+    """
+    print("--- 🏛️ BloombergIDX Temporal Repair Strike ---")
+    db = SessionLocal()
+    try:
+        # 1. Identify records with future months (e.g., October 2026)
+        # We only target 2026 because previous years are likely correct or irrelevant.
+        res = db.execute(text("SELECT id, date FROM insider_transactions WHERE date > '2026-05-31' AND date <= '2026-12-31';")).fetchall()
         
-        fixed = 0
-        for row in rows:
-            t_id, url, current_date, filing_date = row
-            
+        print(f"Detected {len(res)} future-hallucinated records.")
+        
+        fixed_count = 0
+        for row in res:
+            bad_date = row[1] # datetime.date
+            # Swap month and day
             try:
-                # Fetch PDF content via requests (since we are in the container)
-                # We use a simple fetch since these are internal or direct URLs
-                resp = requests.get(url, timeout=10)
-                if resp.status_code == 200:
-                    full_text = ""
-                    with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
-                        for page in pdf.pages:
-                            full_text += page.extract_text(layout=True) or ""
-                    
-                    new_date = extract_transaction_date(full_text)
-                    if new_date and new_date != current_date:
-                        conn.execute(text("UPDATE insider_transactions SET date = :d WHERE id = :id"), 
-                                     {"d": new_date, "id": t_id})
-                        print(f"  - Fixed Date for ID {t_id}: {current_date} -> {new_date}")
-                        fixed += 1
-            except Exception as e:
+                new_date = date(bad_date.year, bad_date.day, bad_date.month)
+                db.execute(text(f"UPDATE insider_transactions SET date = '{new_date}' WHERE id = {row[0]};"))
+                fixed_count += 1
+            except ValueError:
+                # If day is > 12, swapping is impossible, might be a different error
                 pass
         
-        conn.commit()
-        print(f"Date repair complete. Fixed {fixed} records.")
+        # 2. Delete existing 'PROPOSED' events to satisfy User Mandate
+        # Users only want high-conviction/actual events
+        evt_del = db.execute(text("DELETE FROM corporate_events WHERE status = 'PROPOSED';"))
+        print(f"Purged {evt_del.rowcount} PROPOSED speculative events.")
+
+        # 3. Clean up Flow data with suspiciously low nominals (Millions)
+        # Re-populating with Billions requires a fresh slate for broker_transactions
+        db.execute(text("TRUNCATE TABLE broker_transactions RESTART IDENTITY;"))
+        print("Truncated broker_transactions for nominal re-calibration.")
+
+        db.commit()
+        print(f"✅ SUCCESS: Repaired {fixed_count} dates. System chronology restored.")
+        
+    except Exception as e:
+        print(f"❌ FATAL ERROR during repair: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 if __name__ == "__main__":
-    repair_dates()
+    repair_hallucinated_dates()

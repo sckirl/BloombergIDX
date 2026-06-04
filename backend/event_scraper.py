@@ -192,6 +192,18 @@ def scrape_idx_mergers():
                         elif "pengambilalihan" in title_lower or "akuisisi" in title_lower or "takeover" in title_lower:
                             e_type = "ACQUISITION"
                         
+                        # Institutional Mandate: Only ingest "Actual" events (Success/Penyelesaian/Hasil)
+                        # Filter out purely "Proposed" or "Negotiation" items to keep the menu informational
+                        status = "PROPOSED"
+                        if any(kw in title_lower for kw in ["penyelesaian", "hasil", "completion", "effective", "resmi", "pencatatan"]):
+                            status = "COMPLETED"
+                        elif any(kw in title_lower for kw in ["jadwal", "rencana", "plan"]):
+                            status = "WAITING"
+                        
+                        # User Mandate: Delete purely speculative/Proposed items if requested, or filter here
+                        if status == "PROPOSED":
+                            continue
+
                         # Basic extraction logic for acquirer/target
                         acquirer = ""
                         target = issuer_name

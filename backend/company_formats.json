@@ -1989,5 +1989,54 @@
         "price": 15.0,
         "date_found": true,
         "total_value_found": true
+    },
+    "CSIS": {
+        "last_updated": "2026-06-03",
+        "shares": 339200.0,
+        "price": 145.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "BAPA": {
+        "last_updated": "2026-06-03",
+        "shares": 19845000.0,
+        "price": 238.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "RLCO": {
+        "last_updated": "2026-06-03",
+        "shares": 26611200.0,
+        "price": 2580.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "SHAL": {
+        "last_updated": "2026-06-03",
+        "shares": 1850225000.0,
+        "price": 25.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "BUAH": {
+        "last_updated": "2026-06-04",
+        "shares": 2000000000.0,
+        "price": 525.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "MMIX": {
+        "last_updated": "2026-06-04",
+        "shares": 290000000.0,
+        "price": 374.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "ADRO": {
+        "last_updated": "2026-06-04",
+        "shares": 20479100.0,
+        "price": 2300.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }

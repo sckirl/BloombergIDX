@@ -117,7 +117,9 @@ def extract_transaction_date(text: str) -> Optional[datetime.date]:
                 date_str = date_str.replace("Mei", "May").replace("Juni", "June").replace("Juli", "July")
                 date_str = date_str.replace("Agustus", "August").replace("Oktober", "October").replace("Desember", "December")
                 
-                for fmt in ["%d %B %Y", "%d/%m/%Y", "%d-%m-%Y", "%B %d, %Y", "%d %b %Y"]:
+                # Priority: ID/European (DD/MM/YYYY) must come BEFORE US (MM/DD/YYYY)
+                # This prevents "05/10/2026" (May 10) from being read as "October 5"
+                for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%d %B %Y", "%B %d, %Y", "%d %b %Y"]:
                     try:
                         return datetime.strptime(date_str, fmt).date()
                     except: continue

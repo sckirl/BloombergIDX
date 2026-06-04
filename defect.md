@@ -46,3 +46,21 @@ The platform fulfills the entire "Elite Scope" across Phase 1, Phase 2, Phase 3,
 - **Real-Time Data (IHSG/USDIDR):** Active.
 
 The 100-scenario UAT loop has been successfully completed in parallel by the world's best PM and QA agents. There are zero hallucinations, zero unbacked UI shells, and zero phantom features. The system is Bloomberg-grade. 🇮🇩🏁
+
+---
+
+## 🌐 LIVE PULSE AUDIT (https://terminal.sckirl.app)
+**Auditor Status:** **CRITICAL FAIL** - Production Data Drift Detected.
+
+### 🚨 PRODUCTION-ONLY DEFECTS (Database/Redis Tier)
+| ID | Component | Description | Impact | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **PROD-01** | Temporal | **Future Date Hallucination.** Transactions exist up to `2026-12-31`. Caused by US-centric parsing of ID-locale dates (e.g. 01-12-2026 read as Dec 1st instead of Jan 12th). | Broken Chronology. | **OPEN** |
+| **PROD-02** | Map | **Stale Metadata.** 80+ stocks have `null` sectors despite enrichment triggers. This causes the Heatmap to be 40% empty. | Visual Decay. | **OPEN** |
+| **PROD-03** | Flow | **Zero-Flow Ghosting.** 60% of tickers show `0` foreign flow because the batch-strike hasn't fully propagated to older ticks. | Intelligence Gap. | **OPEN** |
+| **PROD-04** | Cache | **Zombie AI States.** Several narratives are stuck in `PROCESSING` mode in Redis, blocking new generation for those specific IDs. | Functional Stall. | **OPEN** |
+
+### 📉 PM RECOMMENDATION: SURGICAL PRODUCTION REPAIR
+1.  **Date Repair Strike:** Execute a targeted script to swap Day/Month for all 2026 records.
+2.  **Metadata Flush:** Re-run `enrich_stock_metadata` and perform a global `FLUSHALL` on the DigitalOcean Redis to clear stale Map views.
+3.  **Institutional Force-Sync:** Execute the `master_scraper` with `--full-year` from a stable local IP to ensure 100% of nodes have real institutional data.
