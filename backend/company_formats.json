@@ -2059,5 +2059,68 @@
         "price": 67.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "HRTA": {
+        "last_updated": "2026-06-10",
+        "shares": 2050000.0,
+        "price": 2130.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "JATI": {
+        "last_updated": "2026-06-10",
+        "shares": 73200.0,
+        "price": 94.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "BUKK": {
+        "last_updated": "2026-06-10",
+        "shares": 202861180.0,
+        "price": 690.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "KTUR": {
+        "last_updated": "2026-06-10",
+        "shares": 1.0,
+        "price": 31.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "TCID": {
+        "last_updated": "2026-06-10",
+        "shares": 5012692.0,
+        "price": 2700.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "OASA": {
+        "last_updated": "2026-06-10",
+        "shares": 1000.0,
+        "price": 248.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "HQLA": {
+        "last_updated": "2026-06-10",
+        "shares": 1.0,
+        "price": 2.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "HIGH": {
+        "last_updated": "2026-06-10",
+        "shares": 17.0,
+        "price": 95.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "EMAS": {
+        "last_updated": "2026-06-10",
+        "shares": 150.0,
+        "price": 16180232675.0,
+        "date_found": true,
+        "total_value_found": true
     }
 }
