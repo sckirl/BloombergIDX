@@ -132,7 +132,8 @@ def scrape_idx_mergers():
             date_to = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
             
             # Navigate to establish session/cookies
-            page.goto("https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/", wait_until="networkidle")
+            page.goto("https://www.idx.co.id/", wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(2000)
             
             for keyword in keywords:
                 logger.info(f"Searching IDX for: {keyword}")
@@ -162,7 +163,9 @@ def scrape_idx_mergers():
                         if not ticker:
                             m_ticker = re.search(r"\[([A-Z]{4})\]", title)
                             if m_ticker:
-                                ticker = m_ticker.group(1)
+                                ticker = m_ticker.group(1).strip()
+                        else:
+                            ticker = ticker.strip()
                         
                         # If we have a ticker but no issuer name, try to resolve from Stock table
                         if ticker and not issuer_name:

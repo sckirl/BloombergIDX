@@ -359,7 +359,8 @@ def run_scraper(full_year=False):
 
         try:
 
-            page.goto("https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/", wait_until="networkidle")
+            page.goto("https://www.idx.co.id/", wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(2000)
             
             all_items = []
             
@@ -397,6 +398,13 @@ def run_scraper(full_year=False):
 
             logger.info(f"Total Disclosures Found: {len(all_items)}")
 
+            # Use a robust requests session for binary fetching (much more stable than browser eval)
+            s = requests.Session()
+            s.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                "Referer": "https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/"
+            })
+
             # Sort by published date descending
             def get_date(x):
                 d = x.get("PublishedDate") or x.get("pengumuman", {}).get("TglPengumuman") or ""
@@ -421,22 +429,17 @@ def run_scraper(full_year=False):
                         
                         logger.info(f"Ingesting: {url}")
                         try:
-                            b64_script = """
-                            (url) => fetch(url).then(res => res.blob()).then(blob => new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result.split(',')[1]);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(blob);
-                            }))
-                            """
-                            b64_pdf = page.evaluate(b64_script, url)
-                            pdf_bytes = base64.b64decode(b64_pdf)
-                            
-                            futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title, issuer_name))
+                            # THE STABILITY FIX: Use requests session instead of page.evaluate
+                            resp = s.get(url, timeout=30)
+                            if resp.status_code == 200:
+                                pdf_bytes = resp.content
+                                futures.append(executor.submit(process_pdf, pdf_bytes, url, pub_date, title, issuer_name))
+                            else:
+                                logger.warning(f"  - Failed to download {url}: Status {resp.status_code}")
                         except Exception as e:
                             logger.error(f"  - Error fetching {url}: {e}")
                         
-                        time.sleep(0.5) 
+                        time.sleep(0.2) 
                 
                 for future in concurrent.futures.as_completed(futures):
                     future.result()

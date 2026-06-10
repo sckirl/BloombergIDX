@@ -77,18 +77,28 @@ def fetch_market_history(db: Session):
             
             logger.info(f"Striking IDX Ledger for {target_date} (Market-Wide)...")
             
-            script = f"""
-            async () => {{
-                try {{
-                    const res = await fetch('https://www.idx.co.id/primary/TradingSummary/GetStockSummary?date={date_str}');
-                    return await res.json();
-                }} catch (e) {{ return null; }}
-            }}
-            """
-            
-            result = page.evaluate(script)
-            if not result or not result.get("data"):
-                logger.info(f"  - No market data for {target_date} (Exchange Closed).")
+            # Use a more robust try/except and ensure the page is still alive
+            try:
+                if page.is_closed():
+                    page = context.new_page()
+                    page.goto("https://www.idx.co.id/en/market-data/trading-summary/stock-summary/", wait_until="networkidle")
+
+                script = f"""
+                async () => {{
+                    try {{
+                        const res = await fetch('https://www.idx.co.id/primary/TradingSummary/GetStockSummary?date={date_str}');
+                        return await res.json();
+                    }} catch (e) {{ return null; }}
+                }}
+                """
+                
+                result = page.evaluate(script)
+                if not result or not result.get("data"):
+                    logger.info(f"  - No market data for {target_date} (Exchange Closed).")
+                    continue
+            except Exception as e:
+                logger.warning(f"  - Page error on {target_date}: {e}. Attempting recovery...")
+                time.sleep(2)
                 continue
             
             market_data = result["data"]
@@ -98,8 +108,10 @@ def fetch_market_history(db: Session):
                 ticker = item.get("StockCode")
                 if ticker in stock_map:
                     # a. Institutional Flow Data
-                    f_buy = int(item.get("ForeignBuy", 0))
-                    f_sell = int(item.get("ForeignSell", 0))
+                    # IMPORTANT: IDX API reports these in SHARES (Lembar), not IDR.
+                    # We must multiply by Price to get the Institutional Value (Value Strike).
+                    f_buy_shares = int(item.get("ForeignBuy", 0))
+                    f_sell_shares = int(item.get("ForeignSell", 0))
                     
                     # b. Price Data (High Veracity Source: IDX Primary)
                     o = float(item.get("OpenPrice", 0))
@@ -121,15 +133,17 @@ def fetch_market_history(db: Session):
                             date=target_date,
                             open=o, high=h, low=l, close=c,
                             volume=v, value=val,
-                            foreign_buy=f_buy, foreign_sell=f_sell,
-                            foreign_net=f_buy - f_sell
+                            foreign_buy=f_buy_shares, 
+                            foreign_sell=f_sell_shares,
+                            foreign_net=f_buy_shares - f_sell_shares
                         )
                         db.add(tick)
                     else:
                         tick.open, tick.high, tick.low, tick.close = o, h, l, c
                         tick.volume, tick.value = v, val
-                        tick.foreign_buy, tick.foreign_sell = f_buy, f_sell
-                        tick.foreign_net = f_buy - f_sell
+                        tick.foreign_buy = f_buy_shares
+                        tick.foreign_sell = f_sell_shares
+                        tick.foreign_net = f_buy_shares - f_sell_shares
                     
                     processed_count += 1
             
@@ -167,12 +181,18 @@ def generate_broker_flow_proxy(db: Session):
         ticks = db.query(PriceTick).filter(PriceTick.stock_id == stock.id).all()
         
         for tick in ticks:
+            # IMPORTANT: We check foreign_buy and foreign_sell (Shares)
             if tick.foreign_buy == 0 and tick.foreign_sell == 0:
                 continue
                 
             # If there's institutional flow, attribute it to proxies
-            net_flow = tick.foreign_net
-            if net_flow == 0: continue
+            # THE VERACITY FIX: Shares * Price = Real Institutional IDR
+            net_idr_total = int(float(tick.foreign_net) * float(tick.close))
+            
+            # ELITE VERACITY FIX: Do not attribute pennies to JP Morgan.
+            # Only trigger proxy generation if the net flow is significant (> 500 Juta IDR).
+            if abs(net_idr_total) < 500_000_000: 
+                continue
             
             # Divide flow among 2-3 random institutional brokers
             selected = random.sample(inst_brokers, 2)
@@ -186,22 +206,20 @@ def generate_broker_flow_proxy(db: Session):
                 
                 if not existing:
                     # Distribute net flow
-                    # IDX API reports volume in shares, but institutional flow is measured in high nominals.
-                    # We ensure the nominals reflect billions (Miliar) not just millions (Juta).
-                    dist_net = int((net_flow * tick.close) / 2)
-                    dist_buy = abs(dist_net) if net_flow > 0 else 0
-                    dist_sell = abs(dist_net) if net_flow < 0 else 0
+                    dist_net_idr = int(net_idr_total / 2)
+                    dist_buy_idr = abs(dist_net_idr) if net_idr_total > 0 else 0
+                    dist_sell_idr = abs(dist_net_idr) if net_idr_total < 0 else 0
                     
                     proxy = BrokerTransaction(
                         stock_id=stock.id,
                         date=tick.date,
                         broker_code=code,
                         broker_name=name,
-                        buy_value=dist_buy,
-                        sell_value=dist_sell,
-                        net_value=dist_net,
-                        buy_volume=abs(int(net_flow / 2)) if net_flow > 0 else 0,
-                        sell_volume=abs(int(net_flow / 2)) if net_flow < 0 else 0
+                        buy_value=dist_buy_idr,
+                        sell_value=dist_sell_idr,
+                        net_value=dist_net_idr,
+                        buy_volume=abs(int(tick.foreign_net / 2)) if net_idr_total > 0 else 0,
+                        sell_volume=abs(int(tick.foreign_net / 2)) if net_idr_total < 0 else 0
                     )
                     db.add(proxy)
                     proxies_created += 1

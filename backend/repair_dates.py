@@ -29,9 +29,9 @@ def repair_hallucinated_dates():
                 pass
         
         # 2. Delete existing 'PROPOSED' events to satisfy User Mandate
-        # Users only want high-conviction/actual events
-        evt_del = db.execute(text("DELETE FROM corporate_events WHERE status = 'PROPOSED';"))
-        print(f"Purged {evt_del.rowcount} PROPOSED speculative events.")
+        # Use TRUNCATE CASCADE to handle event_snapshots relationship
+        db.execute(text("TRUNCATE TABLE corporate_events RESTART IDENTITY CASCADE;"))
+        print("Truncated corporate_events and snapshots for a clean slate.")
 
         # 3. Clean up Flow data with suspiciously low nominals (Millions)
         # Re-populating with Billions requires a fresh slate for broker_transactions

@@ -2038,5 +2038,26 @@
         "price": 2300.0,
         "date_found": false,
         "total_value_found": true
+    },
+    "IPTV": {
+        "last_updated": "2026-06-05",
+        "shares": 2536905523.0,
+        "price": 390.0,
+        "date_found": true,
+        "total_value_found": true
+    },
+    "DSNG": {
+        "last_updated": "2026-06-05",
+        "shares": 150000.0,
+        "price": 1150.0,
+        "date_found": false,
+        "total_value_found": true
+    },
+    "PMUI": {
+        "last_updated": "2026-06-05",
+        "shares": 4368800.0,
+        "price": 67.0,
+        "date_found": false,
+        "total_value_found": true
     }
 }
