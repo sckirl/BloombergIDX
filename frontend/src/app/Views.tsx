@@ -469,16 +469,16 @@ export const EventView = ({ onSelectTicker }: { onSelectTicker?: (t: string) => 
                     <>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PE)</div>
-                        <div className="text-[9px] font-bold text-white">{event.pe_multiple ? `${event.pe_multiple}x` : 'PENDING API'}</div>
+                        <div className="text-[9px] font-bold text-white">{event.pe_multiple != null ? `${Number(event.pe_multiple).toFixed(1)}x` : 'N/A (Loss)'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Valuation Multiple (PB)</div>
-                        <div className="text-[9px] font-bold text-white">{event.pb_multiple ? `${event.pb_multiple}x` : 'PENDING API'}</div>
+                        <div className="text-[9px] font-bold text-white">{event.pb_multiple != null ? `${Number(event.pb_multiple).toFixed(2)}x` : '-'}</div>
                       </div>
                       <div>
                         <div className="text-[7px] text-[#555] uppercase">Unaffected Premium 1D</div>
                         <div className={`text-[9px] font-bold ${event.premium_1d > 0 ? 'text-acc2' : event.premium_1d < 0 ? 'text-[#ff4444]' : 'text-white'}`}>
-                           {event.premium_1d ? `${(event.premium_1d * 100).toFixed(2)}%` : 'PENDING API'}
+                           {event.premium_1d != null ? `${(Number(event.premium_1d) * 100).toFixed(2)}%` : '-'}
                         </div>
                       </div>
                       <div>
