@@ -94,7 +94,7 @@ const SignalFeed = ({ isScraping }: { isScraping: boolean }) => {
   useEffect(() => {
     const fetchSignals = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/clusters`);
         if (res.ok) {
           const data = await res.json();
@@ -151,7 +151,7 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
     const fetchData = async () => {
       setLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const [pmRes, absRes, momRes, banRes] = await Promise.all([
           fetch(`${apiUrl}/insider/accumulation/${ticker}`),
           fetch(`${apiUrl}/insider/absorption/${ticker}`),
@@ -178,7 +178,7 @@ const InstitutionalDrawer = ({ ticker, transactionId, onClose }: { ticker: strin
   const fetchNarrative = useCallback(async () => {
     if (!transactionId) return;
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
       const res = await fetch(`${apiUrl}/insider/narrative/${transactionId}`);
       
       if (res.ok) {
@@ -435,7 +435,7 @@ export default function Home() {
   useEffect(() => {
     const fetchMarketIndices = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/market-indices`);
         if (res.ok) {
           const data = await res.json();
@@ -458,7 +458,7 @@ export default function Home() {
   useEffect(() => {
     const checkScraper = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/scraper-status`);
         if (res.ok) {
           const status = await res.json();
@@ -476,7 +476,7 @@ export default function Home() {
   const fetchData = useCallback(async (ticker?: string) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
       const url = new URL(`${apiUrl}/insider/latest`);
       if (ticker) url.searchParams.append('ticker', ticker.toUpperCase());
       

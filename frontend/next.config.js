@@ -5,9 +5,18 @@ const nextConfig = {
       fullUrl: true,
     },
   },
+  async rewrites() {
+    const target = process.env.NEXT_PUBLIC_API_URL || 'https://oecd-minority-intense-dark.trycloudflare.com';
+    return [
+      {
+        source: '/insider/:path*',
+        destination: `${target}/insider/:path*`,
+      },
+    ];
+  },
   experimental: {
     serverActions: {
-      allowedOrigins: ["pukat-master:8100", "pukat-master:3000", "pukat-master", "100.85.142.33:8100", "100.85.142.33"]
+      allowedOrigins: ["*"]
     }
   },
   devIndicators: {

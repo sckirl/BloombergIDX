@@ -13,7 +13,7 @@ export const FlowView = ({ ticker }: { ticker: string | null }) => {
     const fetchFlow = async () => {
       setLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/flow/${ticker}`);
         if (res.ok) {
           setData(await res.json());
@@ -121,7 +121,7 @@ export const AnomalyView = () => {
   useEffect(() => {
     const fetchAnomalies = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/anomalies`);
         if (res.ok) {
           setAnomalies(await res.json());
@@ -186,7 +186,7 @@ export const HeatmapView = ({ onSelectTicker }: { onSelectTicker?: (t: string) =
   useEffect(() => {
     const fetchHeatmap = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/heatmap`);
         if (res.ok) {
           const rawData = await res.json();
@@ -326,7 +326,7 @@ export const WatchlistView = ({ onSelectTicker }: { onSelectTicker?: (t: string)
     const fetchWatchlistData = async () => {
       setLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/watchlist-data?tickers=${watchlist.join(',')}`);
         if (res.ok) {
           setData(await res.json());
@@ -404,7 +404,7 @@ export const EventView = ({ onSelectTicker }: { onSelectTicker?: (t: string) => 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await fetch(`${apiUrl}/insider/events`);
         if (res.ok) {
           setEvents(await res.json());
