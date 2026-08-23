@@ -8,8 +8,10 @@ RUN npm install
 
 COPY . .
 
-# Expose port
-EXPOSE 8100
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+RUN npm run build
 
-# Start command
-CMD ["sh", "-c", "npm run dev -- -p ${PORT:-8100}"]
+EXPOSE 8080
+
+CMD ["sh", "-c", "npx next start -H 0.0.0.0 -p ${PORT:-8080}"]
