@@ -26,20 +26,6 @@ from .market_indices import get_real_market_indices
 
 import os
 
-# Create tables during startup event to avoid blocking boot
-@app.on_event("startup")
-async def startup_event():
-    try:
-        # Run in a separate thread to not block the event loop
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: models.Base.metadata.create_all(bind=engine))
-        logger.info("Database tables created/verified.")
-    except Exception as e:
-        logger.error(f"Database tables could not be created: {e}", exc_info=True)
-    
-    logger.info("Startup: Triggering daily scheduler...")
-    asyncio.create_task(daily_scheduler())
-
 app = FastAPI(title="IDX OpenInsider API")
 from .narrative_api import router as narrative_router
 app.include_router(narrative_router)

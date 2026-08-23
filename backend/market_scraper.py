@@ -10,6 +10,26 @@ from playwright.sync_api import sync_playwright
 from .models import Stock, PriceTick, BrokerTransaction, InsiderTransaction
 from .logger import logger
 
+import math
+
+def clean_numeric(val):
+    """
+    Cleans yfinance numeric values to prevent database overflow.
+    Converts Infinity and NaN to None.
+    """
+    if val is None:
+        return None
+    try:
+        # Check for Infinity and NaN
+        if isinstance(val, (float, int)) and not math.isfinite(val):
+            return None
+        # Handle string "Infinity"
+        if str(val).lower() == "infinity":
+            return None
+        return val
+    except:
+        return None
+
 def enrich_stock_metadata(db: Session):
     """
     Update stock metadata (name, sector, subsector) using yfinance.
@@ -28,12 +48,14 @@ def enrich_stock_metadata(db: Session):
             stock.name = ticker_info.get('longName', stock.name)
             stock.sector = ticker_info.get('sector', stock.sector)
             stock.subsector = ticker_info.get('industry', stock.subsector)
-            stock.market_cap = ticker_info.get('marketCap', stock.market_cap)
-            stock.trailing_pe = ticker_info.get('trailingPE')
-            stock.price_to_book = ticker_info.get('priceToBook')
-            stock.fifty_two_week_high = ticker_info.get('fiftyTwoWeekHigh')
-            stock.fifty_two_week_low = ticker_info.get('fiftyTwoWeekLow')
-            stock.avg_volume = ticker_info.get('averageVolume')
+            
+            # Sanitize numeric fields (DEFECT-DATA-INF)
+            stock.market_cap = clean_numeric(ticker_info.get('marketCap'))
+            stock.trailing_pe = clean_numeric(ticker_info.get('trailingPE'))
+            stock.price_to_book = clean_numeric(ticker_info.get('priceToBook'))
+            stock.fifty_two_week_high = clean_numeric(ticker_info.get('fiftyTwoWeekHigh'))
+            stock.fifty_two_week_low = clean_numeric(ticker_info.get('fiftyTwoWeekLow'))
+            stock.avg_volume = clean_numeric(ticker_info.get('averageVolume'))
             
             updated_count += 1
             if updated_count % 10 == 0:
@@ -44,6 +66,7 @@ def enrich_stock_metadata(db: Session):
             time.sleep(0.5)
         except Exception as e:
             logger.error(f"Error enriching {stock.ticker}: {str(e)}")
+            db.rollback() # Ensure session is clean for next attempt
             continue
             
     db.commit()

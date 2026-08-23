@@ -3,11 +3,17 @@ from .logger import logger
 from sqlalchemy import create_engine, text
 import re
 
+from .models import Base
+
 def migrate():
     database_url = settings.DATABASE_URL
     print(f"Connecting to database...")
     engine = create_engine(database_url, connect_args={"connect_timeout": 10})
     
+    # Create all base tables if not present
+    Base.metadata.create_all(bind=engine)
+    print("Base metadata tables created/verified.")
+
     with engine.connect() as conn:
         print("Checking for missing tables...")
         # Create corporate_events table with full Sprint-3 schema
@@ -75,6 +81,7 @@ def migrate():
                     conn.commit()
                     print(f"Successfully added {col_name}.")
             except Exception as e:
+                conn.rollback()
                 print(f"Error adding {col_name}: {e}")
 
         # Ensure corporate_events has all columns (handle existing table upgrades)
