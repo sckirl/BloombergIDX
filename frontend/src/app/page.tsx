@@ -477,7 +477,8 @@ export default function Home() {
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const url = new URL(`${apiUrl}/insider/latest`);
+      const base = apiUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000');
+      const url = new URL('/insider/latest', base);
       if (ticker) url.searchParams.append('ticker', ticker.toUpperCase());
       
       const res = await fetch(url.toString(), { cache: 'no-store' });
