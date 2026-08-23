@@ -222,6 +222,17 @@ def scrape_idx_mergers():
                             if m2:
                                 acquirer = m2.group(1).strip()
 
+                        # Extract Direct PDF Source URL from IDX Attachments
+                        attachments = item.get("Attachments") or item.get("attachments") or pengumuman.get("Attachments") or []
+                        source_url = "https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/"
+                        for att in attachments:
+                            pdf_url = att.get("FullSizeUrl") or att.get("FullSavePath") or att.get("File_Path")
+                            if pdf_url:
+                                if not pdf_url.startswith("http"):
+                                    pdf_url = "https://www.idx.co.id" + pdf_url
+                                source_url = pdf_url
+                                break
+
                         events.append({
                             "event_type": e_type,
                             "ticker": ticker,
@@ -231,7 +242,7 @@ def scrape_idx_mergers():
                             "target": target,
                             "status": "PROPOSED", # Default for announcements
                             "description": title,
-                            "source_url": "https://www.idx.co.id/id/perusahaan-tercatat/keterbukaan-informasi/"
+                            "source_url": source_url
                         })
                 except Exception as e:
                     logger.error(f"Error evaluating IDX script for {keyword}: {e}")
@@ -339,6 +350,10 @@ def run_event_scraper():
                     if existing.description != e_data["description"]:
                         existing.description = e_data["description"]
                         has_changed = True
+
+                if e_data.get("source_url") and existing.source_url != e_data["source_url"] and ".pdf" in e_data["source_url"].lower():
+                    existing.source_url = e_data["source_url"]
+                    has_changed = True
 
                 if has_changed:
                     existing.event_date = e_data["event_date"]
