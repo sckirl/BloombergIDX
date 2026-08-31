@@ -6,7 +6,7 @@ const nextConfig = {
     },
   },
   async rewrites() {
-    const target = process.env.NEXT_PUBLIC_API_URL || 'https://oecd-minority-intense-dark.trycloudflare.com';
+    const target = process.env.NEXT_PUBLIC_API_URL || 'https://bloomberg-api.sckirl.app';
     return [
       {
         source: '/insider/:path*',

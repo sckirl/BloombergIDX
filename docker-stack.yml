@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    image: bloombergidx-backend:latest
+    ports:
+      - target: 8000
+        published: 8002
+        mode: ingress
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ALLOWED_ORIGINS=*
+      - DATABASE_URL=postgresql://user:password@100.85.142.33:5432/openinsider
+      - REDIS_URL=redis://100.85.142.33:6379/0
+      - NVIDIA_API_KEY=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
+      - NVIDIA_MODEL=nvidia/nemotron-mini-4b-instruct
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    image: bloombergidx-frontend:latest
+    ports:
+      - target: 8080
+        published: 8102
+        mode: ingress
+    environment:
+      - PORT=8080
+      - NEXT_PUBLIC_API_URL=http://100.85.142.33:8002
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  default:
+    driver: overlay
