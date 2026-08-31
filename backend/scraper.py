@@ -5,6 +5,7 @@ import io
 import re
 import base64
 import os
+import hashlib
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Tuple
@@ -19,8 +20,9 @@ from .models import InsiderTransaction, Base, Stock
 from .utils import normalize_role, calculate_score, calculate_confidence, get_market_metadata, get_price_on_date, calculate_ownership_change
 import threading
 
-# Lock for thread-safe stock creation
+# Lock for thread-safe stock creation and transaction insertion
 stock_creation_lock = threading.Lock()
+transaction_insert_lock = threading.Lock()
 
 # Constants
 KEYWORDS = ["perubahan kepemilikan", "insider", "saham", "kepemilikan"]
@@ -309,36 +311,75 @@ def process_pdf(pdf_bytes: bytes, url: str, pub_date: str, title: str, issuer_na
         is_buyback = "Pembelian Kembali" in (title or "")
         
         added = 0
+        seen_in_batch = set()
+        
         for t_data in parsed:
             t_data["is_buyback"] = is_buyback
             
-            # Resolve stock_id with lock to prevent race conditions
-            ticker = t_data["ticker"]
-            with stock_creation_lock:
+            ticker = (t_data.get("ticker") or "").strip().upper()
+            insider_name = (t_data.get("insider_name") or "").strip()
+            t_type = (t_data.get("transaction_type") or "").strip().upper()
+            shares = float(t_data.get("shares", 0))
+            price = float(t_data.get("price", 0))
+            t_date = t_data.get("date")
+            
+            # 1. Intra-batch deduplication
+            batch_key = (ticker, insider_name, t_type, shares, price, str(t_date))
+            if batch_key in seen_in_batch:
+                continue
+            seen_in_batch.add(batch_key)
+            
+            # 2. Deterministic Filing Hash
+            fingerprint = f"{ticker}_{insider_name}_{t_type}_{shares:.4f}_{price:.4f}_{t_date}"
+            filing_hash = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+            t_data["filing_hash"] = filing_hash
+            t_data["ticker"] = ticker
+            t_data["insider_name"] = insider_name
+            t_data["transaction_type"] = t_type
+            
+            # 3. Thread-Safe Atomic Deduplication and Insert
+            with transaction_insert_lock:
+                # Database-level Deduplication Check
+                existing = db.query(InsiderTransaction).filter(
+                    (InsiderTransaction.filing_hash == filing_hash) |
+                    (
+                        (InsiderTransaction.ticker == ticker) &
+                        (InsiderTransaction.insider_name == insider_name) &
+                        (InsiderTransaction.transaction_type == t_type) &
+                        (InsiderTransaction.shares == shares) &
+                        (InsiderTransaction.price == price) &
+                        (InsiderTransaction.date == t_date)
+                    )
+                ).first()
+                
+                if existing:
+                    continue
+                
+                # Resolve stock_id with lock to prevent race conditions
                 stock = db.query(Stock).filter(Stock.ticker == ticker).first()
                 if not stock:
-                    # Create stock if it doesn't exist
                     stock = Stock(ticker=ticker, name=issuer_name or f"Company {ticker}")
                     db.add(stock)
-                    db.flush() # Get the ID
+                    db.flush()
                 elif issuer_name and (not stock.name or stock.name.startswith("Company ")):
                     stock.name = issuer_name
-            
-            t_data["stock_id"] = stock.id
+                
+                t_data["stock_id"] = stock.id
 
-            m_meta = get_market_metadata(t_data["ticker"])
-            t_data["rvol"] = m_meta["rvol"]
-            t_data["price_history"] = json.dumps(m_meta["price_history"])
-            score, reasons = calculate_score(t_data, db=db)
-            t_data["score"] = score
-            t_data["score_reasons"] = json.dumps(reasons)
-            t_data["confidence"] = calculate_confidence(t_data)
-            db.add(InsiderTransaction(**t_data))
-            added += 1
+                m_meta = get_market_metadata(ticker)
+                t_data["rvol"] = m_meta["rvol"]
+                t_data["price_history"] = json.dumps(m_meta["price_history"])
+                score, reasons = calculate_score(t_data, db=db)
+                t_data["score"] = score
+                t_data["score_reasons"] = json.dumps(reasons)
+                t_data["confidence"] = calculate_confidence(t_data)
+                db.add(InsiderTransaction(**t_data))
+                db.commit()
+                added += 1
         
         db.commit()
         if added > 0:
-            logger.info(f"Successfully added {added} rows from {url}.")
+            logger.info(f"Successfully added {added} new rows from {url}.")
             invalidate_cache("insider_*") # Invalidate all insider caches
         return added
     except Exception as e:

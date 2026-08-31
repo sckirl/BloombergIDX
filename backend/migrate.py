@@ -112,6 +112,14 @@ def migrate():
         add_column("stocks", "trailing_pe", "NUMERIC(12, 4)")
         add_column("stocks", "price_to_book", "NUMERIC(12, 4)")
         
+        # Ensure unique index on insider_transactions filing_hash
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_insider_transactions_filing_hash ON insider_transactions (filing_hash);"))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Index creation notice: {e}")
+
         print("Schema repair complete.")
 
 if __name__ == "__main__":

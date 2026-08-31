@@ -91,7 +91,7 @@ class InsiderTransaction(Base):
     is_buyback = Column(Boolean, default=False)
     insider_win_rate = Column(Numeric(precision=12, scale=6)) # Success rate percentage
     price_history = Column(Text) # JSON string of last 5 days
-    filing_hash = Column(String(64), index=True)
+    filing_hash = Column(String(64), unique=True, index=True)
     date_inferred = Column(Boolean, default=False)
     confidence = Column(Numeric(precision=5, scale=2), default=1.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
